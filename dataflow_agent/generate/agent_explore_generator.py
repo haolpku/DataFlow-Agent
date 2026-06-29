@@ -32,7 +32,7 @@ from dataflow.core import LLMServingABC, OperatorABC
 from dataflow.utils.registry import OPERATOR_REGISTRY
 from dataflow.utils.storage import DataFlowStorage
 
-from dataflow.operators.agentic_explore.sandbox import SandboxClientABC, ToolResult, ToolSchema
+from dataflow_agent.sandbox import SandboxClientABC, ToolResult, ToolSchema
 
 
 _DEFAULT_SYSTEM_PROMPT = """You are an autonomous agent solving a task by calling tools in a sandbox.

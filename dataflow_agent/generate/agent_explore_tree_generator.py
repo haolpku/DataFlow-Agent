@@ -41,11 +41,11 @@ from dataflow.core import LLMServingABC, OperatorABC
 from dataflow.utils.registry import OPERATOR_REGISTRY
 from dataflow.utils.storage import DataFlowStorage
 
-from dataflow.operators.agentic_explore.sandbox import (
+from dataflow_agent.sandbox import (
     SandboxClientABC, ToolResult, ToolSchema,
 )
 # Reuse the battle-tested helpers from the linear generator.
-from dataflow.operators.agentic_explore.generate.agent_explore_generator import (
+from dataflow_agent.generate.agent_explore_generator import (
     AgentExploreGenerator, _DEFAULT_SYSTEM_PROMPT, _FINISH_TOOL,
 )
 

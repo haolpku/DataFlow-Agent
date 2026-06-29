@@ -100,8 +100,8 @@ python examples/agentic_explore/run_mock_pipeline.py
 ```python
 from dataflow.serving import APILLMServing_request
 from dataflow.utils.storage import FileStorage
-from dataflow.operators.agentic_explore.sandbox import AgentFlowSandboxClient
-from dataflow.operators.agentic_explore.generate.agent_explore_generator import AgentExploreGenerator
+from dataflow_agent.sandbox import AgentFlowSandboxClient
+from dataflow_agent.generate.agent_explore_generator import AgentExploreGenerator
 
 storage = FileStorage(first_entry_file_name="queries.jsonl", cache_path="./cache")
 llm = APILLMServing_request(api_url="https://.../v1/chat/completions", model_name="gpt-4o")

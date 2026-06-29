@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataflow-agent"
+version = "0.1.0"
+description = "Agentic exploration & trajectory-quality operators for DataFlow (open-dataflow)."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "Hao Liang", email = "hao.liang@stu.pku.edu.cn" }]
+dependencies = [
+    "open-dataflow",   # provides OperatorABC / LLMServingABC / OPERATOR_REGISTRY / storage
+    "requests",        # AgentFlowSandboxClient HTTP transport
+    "pandas",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools]
+packages = [
+    "dataflow_agent",
+    "dataflow_agent.generate",
+    "dataflow_agent.eval",
+    "dataflow_agent.filter",
+    "dataflow_agent.sandbox",
+]

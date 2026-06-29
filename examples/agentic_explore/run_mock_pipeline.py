@@ -9,7 +9,7 @@ with zero external dependencies:
 To point at a REAL sandbox instead, swap the two marked lines:
 
     from dataflow.serving import APILLMServing_request
-    from dataflow.operators.agentic_explore.sandbox import AgentFlowSandboxClient
+    from dataflow_agent.sandbox import AgentFlowSandboxClient
 
     llm = APILLMServing_request(api_url="https://.../v1/chat/completions",
                                 model_name="gpt-4o")
@@ -28,8 +28,8 @@ import pandas as pd
 
 from dataflow.core import LLMServingABC
 from dataflow.utils.storage import FileStorage
-from dataflow.operators.agentic_explore.sandbox import MockSandboxClient
-from dataflow.operators.agentic_explore.generate.agent_explore_generator import (
+from dataflow_agent.sandbox import MockSandboxClient
+from dataflow_agent.generate.agent_explore_generator import (
     AgentExploreGenerator,
 )
 

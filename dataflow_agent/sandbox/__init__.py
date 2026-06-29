@@ -11,7 +11,7 @@ exposes the minimal contract an exploration loop needs:
     destroy_session(...)    ->  None
 
 Concrete backends implement this ABC.  The first one shipped is
-:class:`~dataflow.operators.agentic_explore.sandbox.agentflow_client.AgentFlowSandboxClient`,
+:class:`~dataflow_agent.sandbox.agentflow_client.AgentFlowSandboxClient`,
 which speaks the AgentFlow sandbox HTTP protocol *over the wire only* (plain
 ``requests`` POSTs) -- it imports nothing from AgentFlow, so DataFlow keeps no
 code dependency on any external sandbox.  Adding a new sandbox (your own, an

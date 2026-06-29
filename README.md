@@ -48,26 +48,32 @@ transport layer itself is domain-agnostic.
 
 ## Install & test
 
+This is a **standalone top-level package** (`dataflow_agent`). It depends on
+`open-dataflow` only for the operator base classes; all agent functionality
+lives in this repo.
+
 ```bash
-# 1. overlay onto a DataFlow checkout (operators need DataFlow's core classes)
-cp -r dataflow/operators/agentic_explore  <DataFlow>/dataflow/operators/
-cp    test/test_agentic_explore.py        <DataFlow>/test/
-cp -r examples/agentic_explore            <DataFlow>/examples/
+# 1. install (pulls open-dataflow for OperatorABC / LLMServingABC / registry / storage)
+pip install open-dataflow
+pip install -e .                 # installs this repo's `dataflow_agent` package
 
 # 2. run the offline test suite (21 tests, no network, no GPU, no API key)
-cd <DataFlow> && pytest test/test_agentic_explore.py -v
+pytest test/test_agentic_explore.py -v
 
 # 3. offline demo pipeline (mock sandbox + scripted LLM)
-PYTHONPATH=. python examples/agentic_explore/run_mock_pipeline.py
+python examples/agentic_explore/run_mock_pipeline.py
 ```
+
+`import dataflow_agent` registers all four operators into DataFlow's
+`OPERATOR_REGISTRY`, so they resolve by name like any built-in operator.
 
 ## Wiring a real run
 
 ```python
-from dataflow.serving import APILLMServing_request
-from dataflow.utils.storage import FileStorage
-from dataflow.operators.agentic_explore.sandbox import AgentFlowSandboxClient
-from dataflow.operators.agentic_explore.generate.agent_explore_generator import AgentExploreGenerator
+import dataflow_agent                                    # registers the operators
+from dataflow.serving import APILLMServing_request       # from open-dataflow
+from dataflow.utils.storage import FileStorage           # from open-dataflow
+from dataflow_agent import AgentExploreGenerator, AgentFlowSandboxClient
 
 storage = FileStorage(first_entry_file_name="queries.jsonl", cache_path="./cache")
 llm = APILLMServing_request(api_url="https://.../v1/chat/completions", model_name="gpt-4o")

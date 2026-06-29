@@ -22,23 +22,23 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from dataflow.core import LLMServingABC
 from dataflow.utils.storage import FileStorage
-from dataflow.operators.agentic_explore.sandbox import (
+from dataflow_agent.sandbox import (
     MockSandboxClient,
     AgentFlowSandboxClient,
     SandboxClientABC,
     ToolResult,
     ToolSchema,
 )
-from dataflow.operators.agentic_explore.generate.agent_explore_generator import (
+from dataflow_agent.generate.agent_explore_generator import (
     AgentExploreGenerator,
 )
-from dataflow.operators.agentic_explore.generate.agent_explore_tree_generator import (
+from dataflow_agent.generate.agent_explore_tree_generator import (
     AgentExploreTreeGenerator,
 )
-from dataflow.operators.agentic_explore.eval.trajectory_quality_evaluator import (
+from dataflow_agent.eval.trajectory_quality_evaluator import (
     TrajectoryQualityEvaluator,
 )
-from dataflow.operators.agentic_explore.filter.trajectory_filter import (
+from dataflow_agent.filter.trajectory_filter import (
     TrajectoryFilter,
 )
 

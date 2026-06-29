@@ -20,10 +20,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # DataFlow root 
 
 from dataflow.core import LLMServingABC
 from dataflow.utils.storage import FileStorage
-from dataflow.operators.agentic_explore.sandbox import AgentFlowSandboxClient
-from dataflow.operators.agentic_explore.generate.agent_explore_generator import AgentExploreGenerator
-from dataflow.operators.agentic_explore.eval.trajectory_quality_evaluator import TrajectoryQualityEvaluator
-from dataflow.operators.agentic_explore.filter.trajectory_filter import TrajectoryFilter
+from dataflow_agent.sandbox import AgentFlowSandboxClient
+from dataflow_agent.generate.agent_explore_generator import AgentExploreGenerator
+from dataflow_agent.eval.trajectory_quality_evaluator import TrajectoryQualityEvaluator
+from dataflow_agent.filter.trajectory_filter import TrajectoryFilter
 
 
 class _SQLAgentLLM(LLMServingABC):

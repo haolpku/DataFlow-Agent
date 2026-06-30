@@ -150,11 +150,16 @@ OpenDCAI 这三个项目是一套组合拳:
 
 | 场景 | 典型工具 | 例子 |
 |---|---|---|
+| **Coding / Working Agent** | `read_file`, `write_file`, `run_python`, `run_tests`, `run_shell` | "修复这个 bug,让测试通过" → 改文件 → 跑 pytest 验证 |
 | **Web 搜索** | `web-search`, `web-visit` | "查一下某事件的最新进展" |
 | **RAG 检索** | `rag-search` | "从知识库里找答案" |
 | **Text2SQL** | `get_schema`, `execute` | "每个城市有多少客户?" → 自动写 SQL 查库 |
 | **文档问答** | `doc-search`, `doc-read` | "这份合同的违约条款是什么?" |
 | **数据分析** | `read_csv`, `run_python` | "分析这个 CSV,算出月度趋势" |
+
+> 🛠️ **Coding Agent 已内置**:`CodingSandboxClient` 给智能体一个**真实隔离的工作目录**,
+> 带文件读写 + 跑 Python + 跑 pytest + shell 工具(路径锁在 workspace 内、命令带超时、可关 shell)。
+> 真实模型实测能自主完成 `看目录 → 读代码 → 改 bug → 跑测试通过 → 收尾` 的完整闭环。
 
 ### ❌ 暂不支持的场景
 

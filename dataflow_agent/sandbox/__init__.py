@@ -22,6 +22,7 @@ of writing another subclass; the operators are untouched.
 from .base import SandboxClientABC, ToolResult, ToolSchema, SandboxError
 from .agentflow_client import AgentFlowSandboxClient
 from .mock_client import MockSandboxClient
+from .coding_client import CodingSandboxClient
 
 __all__ = [
     "SandboxClientABC",
@@ -30,4 +31,5 @@ __all__ = [
     "SandboxError",
     "AgentFlowSandboxClient",
     "MockSandboxClient",
+    "CodingSandboxClient",
 ]

@@ -25,6 +25,7 @@ from dataflow.utils.storage import FileStorage
 from dataflow_agent.sandbox import (
     MockSandboxClient,
     AgentFlowSandboxClient,
+    CodingSandboxClient,
     SandboxClientABC,
     ToolResult,
     ToolSchema,
@@ -684,6 +685,130 @@ def test_refiner_closes_the_loop_with_evaluator():
         refined = json.loads(refined)
     assert refined["success"] is True
     assert out["traj_overall"].iloc[0] == pytest.approx(0.95)
+
+
+# --------------------------------------------------------------------------- #
+# CodingSandboxClient (coding / working-agent environment)
+# --------------------------------------------------------------------------- #
+def test_coding_sandbox_file_roundtrip():
+    sb = CodingSandboxClient(allow_shell=False)
+    wid = sb.new_worker_id()
+    sb.create_session("coding", worker_id=wid)
+    w = sb.execute("write_file", {"path": "hello.txt", "content": "hi there"}, worker_id=wid)
+    assert w.ok and w.observation["bytes_written"] == 8
+    r = sb.execute("read_file", {"path": "hello.txt"}, worker_id=wid)
+    assert r.ok and r.observation["content"] == "hi there"
+    ls = sb.execute("list_files", {"path": "."}, worker_id=wid)
+    assert ls.ok and any(e["name"] == "hello.txt" for e in ls.observation["entries"])
+    sb.destroy_session("coding", worker_id=wid)
+
+
+def test_coding_sandbox_run_python():
+    sb = CodingSandboxClient(allow_shell=False)
+    wid = sb.new_worker_id()
+    sb.create_session("coding", worker_id=wid)
+    res = sb.execute("run_python", {"code": "print(6 * 7)"}, worker_id=wid)
+    assert res.ok
+    assert res.observation["exit_code"] == 0
+    assert "42" in res.observation["stdout"]
+    sb.destroy_session("coding", worker_id=wid)
+
+
+def test_coding_sandbox_seed_files_and_tests():
+    """Seed a failing test + buggy module, run pytest (fails), fix it, re-run (passes)."""
+    seed = {
+        "mymath.py": "def add(a, b):\n    return a - b  # BUG\n",
+        "test_mymath.py": "from mymath import add\n\ndef test_add():\n    assert add(2, 3) == 5\n",
+    }
+    sb = CodingSandboxClient(seed_files=seed, allow_shell=False, timeout=60)
+    wid = sb.new_worker_id()
+    sb.create_session("coding", worker_id=wid)
+
+    failing = sb.execute("run_tests", {"path": "."}, worker_id=wid)
+    assert failing.ok and failing.observation["exit_code"] != 0  # bug -> test fails
+
+    # the agent fixes the bug
+    sb.execute("write_file", {"path": "mymath.py",
+                              "content": "def add(a, b):\n    return a + b\n"}, worker_id=wid)
+    passing = sb.execute("run_tests", {"path": "."}, worker_id=wid)
+    assert passing.ok and passing.observation["exit_code"] == 0  # fixed -> test passes
+    sb.destroy_session("coding", worker_id=wid)
+
+
+def test_coding_sandbox_path_escape_rejected():
+    sb = CodingSandboxClient(allow_shell=False)
+    wid = sb.new_worker_id()
+    sb.create_session("coding", worker_id=wid)
+    bad = sb.execute("read_file", {"path": "../../../../etc/passwd"}, worker_id=wid)
+    assert not bad.ok and bad.code == 4030  # escape blocked
+    sb.destroy_session("coding", worker_id=wid)
+
+
+def test_coding_sandbox_shell_toggle():
+    off = CodingSandboxClient(allow_shell=False)
+    names = {t.name for t in off.list_tools()}
+    assert "run_shell" not in names
+    wid = off.new_worker_id()
+    off.create_session("coding", worker_id=wid)
+    blocked = off.execute("run_shell", {"command": "echo hi"}, worker_id=wid)
+    assert not blocked.ok and blocked.code == 4030
+
+    on = CodingSandboxClient(allow_shell=True)
+    assert "run_shell" in {t.name for t in on.list_tools()}
+
+
+def test_coding_sandbox_workspace_isolation():
+    """Two workers must not see each other's files."""
+    sb = CodingSandboxClient(allow_shell=False)
+    a, b = sb.new_worker_id(), sb.new_worker_id()
+    sb.create_session("coding", worker_id=a)
+    sb.create_session("coding", worker_id=b)
+    sb.execute("write_file", {"path": "secret.txt", "content": "A"}, worker_id=a)
+    # worker b should not find worker a's file
+    r = sb.execute("read_file", {"path": "secret.txt"}, worker_id=b)
+    assert not r.ok and r.code == 4040
+    sb.destroy_session("coding", worker_id=a)
+    sb.destroy_session("coding", worker_id=b)
+
+
+def test_coding_agent_end_to_end_fix_bug():
+    """Full agent loop: scripted LLM drives read->write->run_tests->finish."""
+    seed = {
+        "calc.py": "def square(x):\n    return x + x  # BUG\n",
+        "test_calc.py": "from calc import square\n\ndef test_square():\n    assert square(3) == 9\n",
+    }
+    task = "fix the bug in calc.py so the tests pass"
+    scripts = {task: [
+        json.dumps({"thought": "see the buggy file", "tool": "read_file",
+                    "args": {"path": "calc.py"}}),
+        json.dumps({"thought": "fix it", "tool": "write_file",
+                    "args": {"path": "calc.py", "content": "def square(x):\n    return x * x\n"}}),
+        json.dumps({"thought": "verify", "tool": "run_tests", "args": {"path": "."}}),
+        json.dumps({"thought": "tests pass", "tool": "finish",
+                    "args": {"answer": "fixed square to use multiplication"}}),
+    ]}
+    storage = _make_storage([{"query": task}])
+    op = AgentExploreGenerator(
+        llm_serving=FakeLLMServing(scripts),
+        sandbox=CodingSandboxClient(seed_files=seed, allow_shell=False, timeout=60),
+        domain="coding", max_steps=8, max_workers=1,
+    )
+    op.run(storage.step(), input_key="query", output_key="trajectory")
+    traj = storage.step().read(output_type="dataframe")["trajectory"].iloc[0]
+    if isinstance(traj, str):
+        traj = json.loads(traj)
+    assert traj["success"] is True
+    tools_used = [s["action"]["tool"] for s in traj["steps"]]
+    assert tools_used == ["read_file", "write_file", "run_tests", "finish"]
+    # the run_tests step observed a passing suite (exit_code 0)
+    test_step = traj["steps"][2]
+    assert test_step["observation"]["exit_code"] == 0
+
+
+def test_coding_sandbox_in_registry_via_import():
+    # CodingSandboxClient is exported at the package top level
+    import dataflow_agent
+    assert dataflow_agent.CodingSandboxClient is CodingSandboxClient
 
 
 if __name__ == "__main__":

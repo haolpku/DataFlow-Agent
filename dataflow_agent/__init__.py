@@ -29,6 +29,7 @@ from dataflow_agent.sandbox import (
     SandboxError,
     MockSandboxClient,
     AgentFlowSandboxClient,
+    CodingSandboxClient,
 )
 
 __all__ = [
@@ -43,6 +44,7 @@ __all__ = [
     "SandboxError",
     "MockSandboxClient",
     "AgentFlowSandboxClient",
+    "CodingSandboxClient",
 ]
 
 __version__ = "0.1.0"

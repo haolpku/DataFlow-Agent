@@ -41,6 +41,9 @@ from dataflow_agent.eval.trajectory_quality_evaluator import (
 from dataflow_agent.filter.trajectory_filter import (
     TrajectoryFilter,
 )
+from dataflow_agent.refine.trajectory_refiner import (
+    TrajectoryRefiner,
+)
 
 
 class FakeLLMServing(LLMServingABC):
@@ -518,6 +521,169 @@ def test_tree_paths_feed_filter():
     TrajectoryFilter(require_success=True).run(s2.step(), input_key="trajectory")
     kept = s2.step().read(output_type="dataframe")
     assert len(kept) == len(path_rows)  # all paths succeeded in the mock
+
+
+# --------------------------------------------------------------------------- #
+# TrajectoryRefiner (re-explore to repair low-quality / failed trajectories)
+# --------------------------------------------------------------------------- #
+def _failed_traj(task="needs repair"):
+    """A trajectory that ran out of steps without ever calling finish."""
+    return {
+        "task": task,
+        "steps": [
+            {"thought": "search", "action": {"tool": "search", "args": {"query": task}},
+             "observation": {"results": ["..."]}, "ok": True, "error": None},
+        ],
+        "final_answer": None, "num_steps": 1, "success": False,
+    }
+
+
+class _RepairLLM(LLMServingABC):
+    """On a refine episode, searches once then finishes successfully.
+
+    The refiner injects the original task under a 'Task: <task>' line inside a
+    longer prompt; this LLM just drives search->finish regardless of preamble.
+    """
+
+    def generate_from_input(self, user_inputs, system_prompt=""):
+        out = []
+        for ui in user_inputs:
+            if "observation:" in ui:
+                out.append(json.dumps({"thought": "now I can answer", "tool": "finish",
+                                       "args": {"answer": "REPAIRED"}}))
+            else:
+                out.append(json.dumps({"thought": "retry properly", "tool": "search",
+                                       "args": {"query": "capital of france"}}))
+        return out
+
+    def start_serving(self):
+        pass
+
+    def cleanup(self):
+        pass
+
+
+def test_refiner_repairs_failed_trajectory():
+    """A failed trajectory is re-explored and becomes a successful one."""
+    storage = _make_storage([{"trajectory": _failed_traj()}])
+    op = TrajectoryRefiner(
+        llm_serving=_RepairLLM(), sandbox=MockSandboxClient(), domain="mock",
+        max_steps=5, max_workers=1, score_threshold=None,  # only the failed trigger
+    )
+    op.run(storage.step(), input_key="trajectory", output_key="trajectory")
+    out = storage.step().read(output_type="dataframe")
+    row = out.iloc[0]
+    refined = row["trajectory"]
+    if isinstance(refined, str):
+        refined = json.loads(refined)
+    assert row["_refined"] is True or row["_refined"] == True  # noqa: E712
+    assert refined["success"] is True
+    assert refined["final_answer"] == "REPAIRED"
+    # task string restored to the original (not the augmented prompt)
+    assert refined["task"] == "needs repair"
+    # original preserved for lineage / comparison
+    orig = row["trajectory_original"]
+    if isinstance(orig, str):
+        orig = json.loads(orig)
+    assert orig["success"] is False
+
+
+def test_refiner_skips_good_trajectory():
+    """A successful, high-scoring trajectory is passed through untouched."""
+    good = _traj(success=True, final_answer="already good")
+    storage = _make_storage([{"trajectory": good, "traj_overall": 0.95}])
+    op = TrajectoryRefiner(
+        llm_serving=_RepairLLM(), sandbox=MockSandboxClient(), domain="mock",
+        score_threshold=0.6, max_workers=1,
+    )
+    op.run(storage.step(), input_key="trajectory", output_key="trajectory")
+    out = storage.step().read(output_type="dataframe")
+    row = out.iloc[0]
+    assert bool(row["_refined"]) is False
+    refined = row["trajectory"]
+    if isinstance(refined, str):
+        refined = json.loads(refined)
+    assert refined["final_answer"] == "already good"  # unchanged
+
+
+def test_refiner_triggers_on_low_score():
+    """A trajectory that 'succeeded' but scored below threshold is refined."""
+    low = _traj(success=True, final_answer="weak answer")
+    storage = _make_storage([{"trajectory": low, "traj_overall": 0.3}])
+    op = TrajectoryRefiner(
+        llm_serving=_RepairLLM(), sandbox=MockSandboxClient(), domain="mock",
+        refine_failed=False,            # disable the failed trigger
+        score_threshold=0.6, score_key="traj_overall", max_workers=1,
+    )
+    op.run(storage.step(), input_key="trajectory", output_key="trajectory")
+    out = storage.step().read(output_type="dataframe")
+    row = out.iloc[0]
+    assert bool(row["_refined"]) is True
+    refined = row["trajectory"]
+    if isinstance(refined, str):
+        refined = json.loads(refined)
+    assert refined["final_answer"] == "REPAIRED"
+
+
+def test_refiner_diagnosis_detects_failure_modes():
+    # never-finished -> "never produced a final answer"
+    d1 = TrajectoryRefiner._diagnose(_failed_traj())
+    assert "final answer" in d1
+
+    # invalid tool -> diagnosis mentions the bogus tool
+    bad_tool = {"task": "t", "success": True, "final_answer": "x", "num_steps": 1,
+                "steps": [{"action": {"tool": "magic", "args": {}}, "invalid_tool": True,
+                           "observation": None}]}
+    d2 = TrajectoryRefiner._diagnose(bad_tool)
+    assert "magic" in d2
+
+    # repeated action -> diagnosis mentions a loop
+    loop = {"task": "t", "success": True, "final_answer": "x", "num_steps": 2,
+            "steps": [
+                {"action": {"tool": "search", "args": {"q": "z"}}, "observation": {}, "ok": True},
+                {"action": {"tool": "search", "args": {"q": "z"}}, "observation": {}, "ok": True},
+            ]}
+    d3 = TrajectoryRefiner._diagnose(loop)
+    assert "loop" in d3
+
+
+def test_refiner_is_registered():
+    from dataflow.utils.registry import OPERATOR_REGISTRY
+    assert OPERATOR_REGISTRY.get("TrajectoryRefiner") is TrajectoryRefiner
+
+
+def test_refiner_closes_the_loop_with_evaluator():
+    """Evaluator scores low -> Refiner repairs -> re-Evaluator scores high.
+
+    Exercises the full Generator-less slice Evaluate->Refine->Evaluate on a
+    hand-built failed trajectory, proving the refined column is judge-ready.
+    """
+    storage = _make_storage([{"trajectory": _failed_traj()}])
+
+    # 1) judge the failed trajectory -> low overall
+    low_verdict = {"goal_achievement": 1, "efficiency": 2, "coherence": 2,
+                   "tool_use": 2, "overall": 0.2, "rationale": "no answer"}
+    TrajectoryQualityEvaluator(llm_serving=_JudgeLLM(low_verdict), max_workers=1).run(
+        storage.step(), input_key="trajectory", output_key="traj_overall")
+
+    # 2) refine the low-scoring trajectory
+    TrajectoryRefiner(
+        llm_serving=_RepairLLM(), sandbox=MockSandboxClient(), domain="mock",
+        score_threshold=0.6, score_key="traj_overall", max_workers=1,
+    ).run(storage.step(), input_key="trajectory", output_key="trajectory")
+
+    # 3) re-judge the refined trajectory -> high overall
+    high_verdict = {"goal_achievement": 5, "efficiency": 5, "coherence": 5,
+                    "tool_use": 5, "overall": 0.95, "rationale": "now correct"}
+    TrajectoryQualityEvaluator(llm_serving=_JudgeLLM(high_verdict), max_workers=1).run(
+        storage.step(), input_key="trajectory", output_key="traj_overall")
+
+    out = storage.step().read(output_type="dataframe")
+    refined = out["trajectory"].iloc[0]
+    if isinstance(refined, str):
+        refined = json.loads(refined)
+    assert refined["success"] is True
+    assert out["traj_overall"].iloc[0] == pytest.approx(0.95)
 
 
 if __name__ == "__main__":

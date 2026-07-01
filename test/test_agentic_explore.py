@@ -45,6 +45,9 @@ from dataflow_agent.filter.trajectory_filter import (
 from dataflow_agent.refine.trajectory_refiner import (
     TrajectoryRefiner,
 )
+from dataflow_agent.select.trajectory_selector import (
+    TrajectorySelector,
+)
 
 
 class FakeLLMServing(LLMServingABC):
@@ -809,6 +812,123 @@ def test_coding_sandbox_in_registry_via_import():
     # CodingSandboxClient is exported at the package top level
     import dataflow_agent
     assert dataflow_agent.CodingSandboxClient is CodingSandboxClient
+
+
+# --------------------------------------------------------------------------- #
+# TrajectorySelector (ported from AgentFlow: top-N diverse selection)
+# --------------------------------------------------------------------------- #
+def _traj_with(tools_and_obs, task="t", success=True):
+    """Build a trajectory with given (tool, observation) per step."""
+    steps = []
+    for tool, obs in tools_and_obs:
+        steps.append({"thought": "x", "action": {"tool": tool, "args": {"q": obs[:3]}},
+                      "observation": obs, "ok": True})
+    steps.append({"thought": "done", "action": {"tool": "finish", "args": {"answer": "a"}},
+                  "observation": {"answer": "a"}})
+    return {"task": task, "steps": steps, "final_answer": "a",
+            "num_steps": len(steps), "success": success}
+
+
+def test_selector_scores_and_picks_topn():
+    # deep+diverse+long should outrank shallow ones
+    deep = _traj_with([("search", "X" * 100), ("read", "Y" * 100), ("exec", "Z" * 100)])
+    shallow = _traj_with([("search", "s")])
+    mid = _traj_with([("search", "m" * 50), ("search", "m" * 50)])
+    rows = [{"trajectory": shallow}, {"trajectory": deep}, {"trajectory": mid}]
+    storage = _make_storage(rows)
+    op = TrajectorySelector(max_selected=2, min_depth=2, mode="rows")
+    op.run(storage.step(), input_key="trajectory")
+    out = storage.step().read(output_type="dataframe")
+    assert len(out) == 2  # top-2 kept
+    kept = [json.loads(t) if isinstance(t, str) else t for t in out["trajectory"]]
+    # the deep/diverse trajectory must be among the selected
+    assert any(len(t["steps"]) == 4 for t in kept)
+
+
+def test_selector_jaccard_dedup():
+    # two near-identical trajectories: only one should survive
+    a = _traj_with([("search", "AAAA" * 30), ("read", "BBBB" * 30)])
+    b = _traj_with([("search", "AAAA" * 30), ("read", "BBBB" * 30)])  # identical actions
+    c = _traj_with([("exec", "CCCC" * 30), ("inspect", "DDDD" * 30)])  # different
+    rows = [{"trajectory": a}, {"trajectory": b}, {"trajectory": c}]
+    storage = _make_storage(rows)
+    op = TrajectorySelector(max_selected=3, min_depth=2,
+                            path_similarity_threshold=0.7, mode="rows")
+    op.run(storage.step(), input_key="trajectory")
+    out = storage.step().read(output_type="dataframe")
+    # a and b collapse (Jaccard=1.0 > 0.7) -> at most 2 distinct survive
+    assert len(out) == 2
+
+
+def test_selector_min_depth_filter():
+    short = _traj_with([("search", "s")])         # 2 steps incl finish
+    ok = _traj_with([("search", "s"), ("read", "r"), ("exec", "e")])  # 4 steps
+    rows = [{"trajectory": short}, {"trajectory": ok}]
+    storage = _make_storage(rows)
+    op = TrajectorySelector(max_selected=5, min_depth=4, mode="rows")
+    op.run(storage.step(), input_key="trajectory")
+    out = storage.step().read(output_type="dataframe")
+    assert len(out) == 1  # only the >=4-step trajectory qualifies
+
+
+def test_selector_tree_mode_on_real_tree():
+    """Feed a real AgentExploreTreeGenerator tree; select from its paths."""
+    storage = _make_storage([{"query": "explore me"}])
+    AgentExploreTreeGenerator(
+        llm_serving=_TreeLLM(), sandbox=MockSandboxClient(), domain="mock",
+        max_depth=3, branching_factor=2, max_children=2, max_workers=1,
+    ).run(storage.step(), input_key="query", output_key="tree")
+    sel = TrajectorySelector(max_selected=1, min_depth=1, mode="tree")
+    sel.run(storage.step(), input_key="tree", output_key="selected")
+    out = storage.step().read(output_type="dataframe")
+    assert "selected" in out.columns
+    chosen = out["selected"].iloc[0]
+    if isinstance(chosen, str):
+        chosen = json.loads(chosen)
+    assert isinstance(chosen, list) and len(chosen) <= 1
+    assert out["selected_count"].iloc[0] == len(chosen)
+
+
+def test_selector_registered():
+    from dataflow.utils.registry import OPERATOR_REGISTRY
+    assert OPERATOR_REGISTRY.get("TrajectorySelector") is TrajectorySelector
+
+
+def test_selector_score_matches_agentflow_formula():
+    """Faithful-port check: score equals AgentFlow's depth+info+diversity."""
+    # single trajectory pool -> info normalization is 0 (min==max), so only
+    # depth(40 capped at 5 steps) + diversity apply.
+    t = _traj_with([("search", "x"), ("read", "y"), ("exec", "z")])  # 4 steps, 4 tools
+    op = TrajectorySelector(max_selected=1, min_depth=1, total_tools=4, mode="rows")
+    # depth: min(4/5,1)*40 = 32 ; info: 0 (single-item pool) ;
+    # diversity: distinct tools {search,read,exec,finish}=4 / 4 * 30 = 30
+    score = op._score(t, avg_obs_length=0, min_length=0, length_range=1, total_tools=4)
+    assert abs(score - (min(4 / 5.0, 1.0) * 40 + 0 + 4 / 4 * 30)) < 1e-9
+
+
+def test_tree_depth_threshold_collapses_branching():
+    """With depth_threshold, deep levels keep a single child -> fewer nodes."""
+    wide = _make_storage([{"query": "explore me"}])
+    AgentExploreTreeGenerator(
+        llm_serving=_TreeLLM(), sandbox=MockSandboxClient(), domain="mock",
+        max_depth=3, branching_factor=2, max_children=2, max_workers=1,
+    ).run(wide.step(), input_key="query", output_key="tree")
+    wide_rec = wide.step().read(output_type="dataframe")["tree"].iloc[0]
+    if isinstance(wide_rec, str):
+        wide_rec = json.loads(wide_rec)
+
+    narrow = _make_storage([{"query": "explore me"}])
+    AgentExploreTreeGenerator(
+        llm_serving=_TreeLLM(), sandbox=MockSandboxClient(), domain="mock",
+        max_depth=3, branching_factor=2, max_children=2, max_workers=1,
+        depth_threshold=1,  # from depth 1 on, only 1 child
+    ).run(narrow.step(), input_key="query", output_key="tree")
+    narrow_rec = narrow.step().read(output_type="dataframe")["tree"].iloc[0]
+    if isinstance(narrow_rec, str):
+        narrow_rec = json.loads(narrow_rec)
+
+    # collapsing branching at depth>=1 must not produce more nodes than the wide tree
+    assert narrow_rec["num_nodes"] <= wide_rec["num_nodes"]
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ from dataflow_agent.generate.agent_explore_tree_generator import AgentExploreTre
 from dataflow_agent.eval.trajectory_quality_evaluator import TrajectoryQualityEvaluator
 from dataflow_agent.filter.trajectory_filter import TrajectoryFilter
 from dataflow_agent.refine.trajectory_refiner import TrajectoryRefiner
+from dataflow_agent.select.trajectory_selector import TrajectorySelector
 
 # Sandbox backends (the pluggable transport layer).
 from dataflow_agent.sandbox import (
@@ -38,6 +39,7 @@ __all__ = [
     "TrajectoryQualityEvaluator",
     "TrajectoryFilter",
     "TrajectoryRefiner",
+    "TrajectorySelector",
     "SandboxClientABC",
     "ToolResult",
     "ToolSchema",

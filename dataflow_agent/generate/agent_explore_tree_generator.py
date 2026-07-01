@@ -82,6 +82,7 @@ class AgentExploreTreeGenerator(OperatorABC):
         max_observation_chars: int = 8000,
         validate_tool_names: bool = True,
         dedup_actions: bool = True,
+        depth_threshold: Optional[int] = None,
         system_prompt: Optional[str] = None,
     ):
         self.logger = get_logger()
@@ -96,6 +97,10 @@ class AgentExploreTreeGenerator(OperatorABC):
         self.max_observation_chars = max_observation_chars
         self.validate_tool_names = validate_tool_names
         self.dedup_actions = dedup_actions
+        # AgentFlow-style depth threshold: at depths >= this, collapse branching
+        # to a single child (deep levels explore one path only, to save cost).
+        # None keeps the original uniform-branching behavior.
+        self.depth_threshold = depth_threshold
         self.system_prompt = system_prompt or _DEFAULT_SYSTEM_PROMPT
         # Borrow the linear generator's parser / truncation / catalog helpers
         # so behavior stays consistent and we don't duplicate code.
@@ -183,13 +188,17 @@ class AgentExploreTreeGenerator(OperatorABC):
             # dedup identical actions at this node
             seen: set = set()
             distinct: List[Dict[str, Any]] = []
+            # AgentFlow-style: beyond depth_threshold, keep only a single child
+            child_cap = self.max_children
+            if self.depth_threshold is not None and depth >= self.depth_threshold:
+                child_cap = 1
             for act in candidates:
                 key = self._action_key(act)
                 if self.dedup_actions and key in seen:
                     continue
                 seen.add(key)
                 distinct.append(act)
-                if len(distinct) >= self.max_children:
+                if len(distinct) >= child_cap:
                     break
 
             for act in distinct:

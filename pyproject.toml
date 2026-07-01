@@ -25,5 +25,6 @@ packages = [
     "dataflow_agent.eval",
     "dataflow_agent.filter",
     "dataflow_agent.refine",
+    "dataflow_agent.select",
     "dataflow_agent.sandbox",
 ]

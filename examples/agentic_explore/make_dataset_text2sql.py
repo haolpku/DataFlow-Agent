@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # DataFlow root
 
 from dataflow.core import LLMServingABC
 from dataflow.utils.storage import FileStorage
-from dataflow_agent.sandbox import AgentFlowSandboxClient
+from dataflow_agent.sandbox import HTTPSandboxClient
 from dataflow_agent.generate.agent_explore_generator import AgentExploreGenerator
 from dataflow_agent.eval.trajectory_quality_evaluator import TrajectoryQualityEvaluator
 from dataflow_agent.filter.trajectory_filter import TrajectoryFilter
@@ -97,7 +97,7 @@ def dump_steps(cache_dir, src_path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://127.0.0.1:18890")
-    ap.add_argument("--out", default="/tmp/agentflow_e2e/dataset")
+    ap.add_argument("--out", default="/tmp/sandbox_e2e/dataset")
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
@@ -111,7 +111,7 @@ def main():
     cache = os.path.join(args.out, "cache")
     storage = FileStorage(first_entry_file_name=src, cache_path=cache, cache_type="jsonl")
 
-    sandbox = AgentFlowSandboxClient(base_url=args.base_url, domain="text2sql", stateful=False)
+    sandbox = HTTPSandboxClient(base_url=args.base_url, domain="text2sql", stateful=False)
     print(f"[data] sandbox health={sandbox.health_check()} "
           f"tools={[t.name for t in sandbox.list_tools('text2sql')]}")
 

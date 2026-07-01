@@ -69,7 +69,7 @@
 | **AgentExploreGenerator** | 生成 | 让模型一步步"想 → 调工具 → 看结果",直到给出答案 | 产出**一条**线性轨迹 |
 | **AgentExploreTreeGenerator** | 生成 | 每一步**同时尝试多个不同动作**,展开成一棵"探索树" | 产出**多条**候选路径,还能做正负样本对比 |
 | **TrajectoryQualityEvaluator** | 评估 | 大模型当裁判,从 4 个维度打分:目标达成 / 效率 / 连贯性 / 工具使用 | 给出 `overall` 总分 + 评语 |
-| **TrajectorySelector** | 选择 | 从候选池里**挑 top-N 条高质量且多样**的轨迹(深度+信息量+工具多样性打分 → Jaccard 去重) | **不调大模型**;移植自 AgentFlow 的选择算法 |
+| **TrajectorySelector** | 选择 | 从候选池里**挑 top-N 条高质量且多样**的轨迹(深度+信息量+工具多样性打分 → Jaccard 去重) | **不调大模型**;确定性树搜索选择算法 |
 | **TrajectoryFilter** | 过滤 | 用**确定性规则**筛掉坏轨迹(没成功、答案为空、工具用错、死循环……) | **不调大模型**,又快又稳定、可复现 |
 | **TrajectoryRefiner** | 修复 | 对失败/低分的轨迹,带上"上次哪里错了"的诊断**重新探索一次**,把它救回来 | **只修坏的**(好的原样放行,不花钱);自己不评分,交给下游重评择优 |
 
@@ -103,14 +103,14 @@
         └───────┬──────┘  └─────┬─────────┘
                 │               │
          任意大模型API      ┌────┴────┬─────────┬──────────┐
-         (GPT/Claude/…)   Mock沙箱  AgentFlow沙箱  你自己的沙箱
+         (GPT/Claude/…)   Mock沙箱  远程HTTP沙箱  你自己的沙箱
                           (离线测试)  (HTTP通信)   (写个子类即可)
 ```
 
 **好处很直接:**
 
 - 想换个沙箱?**写一个 `SandboxClientABC` 的子类就行,六个算子一行都不用改。**
-- 我们和 AgentFlow 沙箱的通信**只走 HTTP**(普通 `requests`),不 import 任何 AgentFlow 的 SDK,彻底解耦。
+- 我们和远程沙箱的通信**只走 HTTP**(普通 `requests`),不 import 任何外部沙箱的 SDK,彻底解耦。
 - 测试时用 `MockSandboxClient`(纯内存、不联网、不要 GPU、不要 API key),CI 里就能把整条流水线跑通。
 
 我们内置了两个后端,你也可以加自己的:
@@ -118,29 +118,30 @@
 | 后端 | 用途 |
 |---|---|
 | `MockSandboxClient` | 离线开发 / 测试,零依赖 |
-| `AgentFlowSandboxClient` | 连真实 AgentFlow 沙箱(HTTP 协议) |
+| `CodingSandboxClient` | 真实工作区:文件读写 + 跑 Python + pytest + shell |
+| `HTTPSandboxClient` | 连任意远程沙箱服务器(通用 HTTP 协议) |
 | **你自己的** | 实现 `list_tools` + `execute` 两个方法即可 |
 
 ---
 
-## 4. 它和 DataFlow / AgentFlow 是什么关系?
+## 4. 它和 DataFlow 是什么关系?
 
-OpenDCAI 这三个项目是一套组合拳:
+本项目构建在 DataFlow 之上,并向"远程沙箱"延伸:
 
 ```
    DataFlow  (底座:数据流水线平台,提供算子基类/大模型服务/存储/注册表)
       ▲                                          ▲
       │ 复用基类                                  │ 通过 HTTP 调工具
       │                                          │
-  DataFlow-Agent  ──────────────────────►  AgentFlow 沙箱
-  (本项目:给轨迹打分、筛选)                  (多环境沙箱:采集轨迹)
+  DataFlow-Agent  ──────────────────────►  远程沙箱服务器
+  (本项目:探索 + 打分 + 筛选 + 修复)        (多环境沙箱:采集轨迹)
 ```
 
 - **DataFlow**:成熟的数据处理平台(已发布到 PyPI:`open-dataflow`)。我们的算子直接挂到它的注册表里,像内置算子一样按名字调用。
-- **AgentFlow**:多环境 Agent 沙箱(RAG / 文档 / 深度搜索 / GUI / Text2SQL / 数据分析……),负责"采集"。
-- **DataFlow-Agent(本项目)**:**桥梁 + 增值**。它把 DataFlow 的能力延伸到 Agent 领域,并补上 AgentFlow 缺的那一环——**质量评估与筛选**。
+- **远程沙箱**:任何暴露通用 HTTP 协议(`/api/v1/execute` + `{code,message,data,meta}` 信封)的多环境 Agent 沙箱(RAG / 文档 / Text2SQL / 数据分析……),负责"采集"。通过 `HTTPSandboxClient` 对接,不依赖任何具体沙箱 SDK。
+- **DataFlow-Agent(本项目)**:**桥梁 + 增值**。它把 DataFlow 的能力延伸到 Agent 领域,补上"采集之后"最关键的一环——**质量评估、选择、过滤与修复**。
 
-> 一句话总结分工:**AgentFlow 负责"采",DataFlow-Agent 负责"筛",DataFlow 提供"地基"。**
+> 一句话总结分工:**沙箱负责"采",DataFlow-Agent 负责"筛与修",DataFlow 提供"地基"。**
 
 ---
 
@@ -194,11 +195,11 @@ pytest test/test_agentic_explore.py -v
 import dataflow_agent                                   # 导入即自动注册六个算子
 from dataflow.serving import APILLMServing_request
 from dataflow.utils.storage import FileStorage
-from dataflow_agent import AgentExploreGenerator, AgentFlowSandboxClient
+from dataflow_agent import AgentExploreGenerator, HTTPSandboxClient
 
 storage = FileStorage(first_entry_file_name="queries.jsonl", cache_path="./cache")
 llm     = APILLMServing_request(api_url="https://.../v1/chat/completions", model_name="...")
-sandbox = AgentFlowSandboxClient(base_url="http://127.0.0.1:18890", domain="text2sql")
+sandbox = HTTPSandboxClient(base_url="http://127.0.0.1:18890", domain="text2sql")
 
 op = AgentExploreGenerator(llm_serving=llm, sandbox=sandbox, domain="text2sql", max_steps=10)
 op.run(storage.step(), input_key="query", output_key="trajectory")
@@ -236,4 +237,4 @@ op.run(storage.step(), input_key="query", output_key="trajectory")
 - **多模态探索器**:支持 GUI / 虚拟机的图像观察(目前只支持文本/结构化领域)。
 - **偏好数据导出**:从探索树里取"最好 vs 最差"的兄弟路径,产出 DPO 式的偏好训练对。
 
-> ✅ **已实现**:`生成 → 评估 → 选择/过滤 → 修复` 闭环已完整落地(`TrajectorySelector` 移植自 AgentFlow 的选择算法、`TrajectoryRefiner` 修复器,见上文第 2 节)。
+> ✅ **已实现**:`生成 → 评估 → 选择/过滤 → 修复` 闭环已完整落地(`TrajectorySelector` 选择器、`TrajectoryRefiner` 修复器,见上文第 2 节)。

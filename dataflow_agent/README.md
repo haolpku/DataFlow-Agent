@@ -66,13 +66,14 @@ It never imports a concrete sandbox. Backends are swappable subclasses:
 | Backend | Module | Notes |
 |---|---|---|
 | `MockSandboxClient` | `sandbox/mock_client.py` | Offline, network-free. For tests/dev. |
-| `AgentFlowSandboxClient` | `sandbox/agentflow_client.py` | Talks to an AgentFlow sandbox **over HTTP only** — imports nothing from AgentFlow. |
+| `CodingSandboxClient` | `sandbox/coding_client.py` | Real workspace: file ops + run_python + pytest + shell. |
+| `HTTPSandboxClient` | `sandbox/http_client.py` | Drives a remote sandbox server **over HTTP only** — imports nothing from any sandbox SDK. |
 | *your own* | add a subclass | Implement `list_tools` + `execute` (+ optional session lifecycle). |
 
-> The AgentFlow client reproduces only the wire protocol
+> The HTTP client reproduces only a generic wire protocol
 > (`/api/v1/execute`, the `{code,message,data,meta}` envelope). DataFlow keeps
-> **no code dependency** on AgentFlow. To migrate to a different sandbox, write
-> another `SandboxClientABC` subclass — the operators are untouched.
+> **no code dependency** on any external sandbox. To migrate to a different
+> sandbox, write another `SandboxClientABC` subclass — the operators are untouched.
 
 ## The contract a sandbox must satisfy
 
@@ -100,12 +101,12 @@ python examples/agentic_explore/run_mock_pipeline.py
 ```python
 from dataflow.serving import APILLMServing_request
 from dataflow.utils.storage import FileStorage
-from dataflow_agent.sandbox import AgentFlowSandboxClient
+from dataflow_agent.sandbox import HTTPSandboxClient
 from dataflow_agent.generate.agent_explore_generator import AgentExploreGenerator
 
 storage = FileStorage(first_entry_file_name="queries.jsonl", cache_path="./cache")
 llm = APILLMServing_request(api_url="https://.../v1/chat/completions", model_name="gpt-4o")
-sandbox = AgentFlowSandboxClient(base_url="http://127.0.0.1:18890", domain="web")
+sandbox = HTTPSandboxClient(base_url="http://127.0.0.1:18890", domain="web")
 #   domain ∈ {web, rag, vm, sql, doc, ...}; set stateful=True for VM/GUI domains.
 
 op = AgentExploreGenerator(llm_serving=llm, sandbox=sandbox, domain="web",

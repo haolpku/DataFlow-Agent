@@ -9,11 +9,11 @@ with zero external dependencies:
 To point at a REAL sandbox instead, swap the two marked lines:
 
     from dataflow.serving import APILLMServing_request
-    from dataflow_agent.sandbox import AgentFlowSandboxClient
+    from dataflow_agent.sandbox import HTTPSandboxClient
 
     llm = APILLMServing_request(api_url="https://.../v1/chat/completions",
                                 model_name="gpt-4o")
-    sandbox = AgentFlowSandboxClient(base_url="http://127.0.0.1:18890",
+    sandbox = HTTPSandboxClient(base_url="http://127.0.0.1:18890",
                                      domain="web")     # web / rag / vm / sql ...
 
 Everything else stays the same -- the operator only depends on the
@@ -77,7 +77,7 @@ def main():
 
     op = AgentExploreGenerator(
         llm_serving=_ScriptedLLM(),       # <-- swap for APILLMServing_request(...)
-        sandbox=MockSandboxClient(),      # <-- swap for AgentFlowSandboxClient(...)
+        sandbox=MockSandboxClient(),      # <-- swap for HTTPSandboxClient(...)
         domain="mock",
         max_steps=5,
         max_workers=2,

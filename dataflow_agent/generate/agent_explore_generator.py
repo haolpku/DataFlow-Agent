@@ -69,7 +69,7 @@ class AgentExploreGenerator(OperatorABC):
 
     Args:
         llm_serving: Any :class:`LLMServingABC` used to pick the next action.
-        sandbox: Any :class:`SandboxClientABC` backend (AgentFlow / mock / your
+        sandbox: Any :class:`SandboxClientABC` backend (HTTP / mock / your
             own). The operator never assumes a concrete sandbox.
         domain: Sandbox domain to explore (``"web"``, ``"rag"``, ``"sql"``,
             ``"doc"``, ``"ds"``, ...). Passed to session creation and tool listing.
@@ -124,7 +124,7 @@ class AgentExploreGenerator(OperatorABC):
                 "该算子驱动 LLM 智能体在可插拔沙箱中进行多步探索，合成 agent 轨迹数据。\n\n"
                 "输入参数：\n"
                 "- llm_serving: 用于决策下一步动作的 LLM 服务（LLMServingABC）\n"
-                "- sandbox: 沙箱后端（SandboxClientABC，如 AgentFlow / Mock / 自研）\n"
+                "- sandbox: 沙箱后端（SandboxClientABC，如 HTTP / Mock / 自研）\n"
                 "- domain: 沙箱域（web/rag/vm/sql/doc 等）\n"
                 "- max_steps: 单条任务最大工具调用步数\n"
                 "- max_workers: 并发 episode 线程数\n\n"

@@ -29,7 +29,7 @@ from dataflow_agent.sandbox import (
     ToolSchema,
     SandboxError,
     MockSandboxClient,
-    AgentFlowSandboxClient,
+    HTTPSandboxClient,
     CodingSandboxClient,
 )
 
@@ -45,7 +45,7 @@ __all__ = [
     "ToolSchema",
     "SandboxError",
     "MockSandboxClient",
-    "AgentFlowSandboxClient",
+    "HTTPSandboxClient",
     "CodingSandboxClient",
 ]
 

@@ -24,7 +24,7 @@ from dataflow.core import LLMServingABC
 from dataflow.utils.storage import FileStorage
 from dataflow_agent.sandbox import (
     MockSandboxClient,
-    AgentFlowSandboxClient,
+    HTTPSandboxClient,
     CodingSandboxClient,
     SandboxClientABC,
     ToolResult,
@@ -329,7 +329,7 @@ def test_invalid_tool_name_is_rejected():
 
 
 # --------------------------------------------------------------------------- #
-# registry + AgentFlow client envelope mapping (no network)
+# registry + HTTP client envelope mapping (no network)
 # --------------------------------------------------------------------------- #
 def test_operator_is_registered():
     from dataflow.utils.registry import OPERATOR_REGISTRY
@@ -337,26 +337,26 @@ def test_operator_is_registered():
     assert cls is AgentExploreGenerator
 
 
-def test_agentflow_client_envelope_mapping():
+def test_http_client_envelope_mapping():
     # _to_result is a pure function over the {code,message,data,meta} envelope.
     ok_body = {"code": 0, "message": "success",
                "data": {"results": ["a"]}, "meta": {"execution_time_ms": 12.3}}
-    r = AgentFlowSandboxClient._to_result(ok_body)
+    r = HTTPSandboxClient._to_result(ok_body)
     assert r.ok and r.observation == {"results": ["a"]} and r.elapsed_ms == 12.3
 
     err_body = {"code": 4040, "message": "tool not found", "data": None, "meta": {}}
-    r2 = AgentFlowSandboxClient._to_result(err_body)
+    r2 = HTTPSandboxClient._to_result(err_body)
     assert not r2.ok and r2.code == 4040 and r2.error == "tool not found"
 
     final_body = {"code": 0, "message": "success",
                   "data": {"answer": "done", "is_final": True}, "meta": {}}
-    r3 = AgentFlowSandboxClient._to_result(final_body)
+    r3 = HTTPSandboxClient._to_result(final_body)
     assert r3.ok and r3.is_final
 
 
-def test_agentflow_client_qualify_prefix():
-    assert AgentFlowSandboxClient._qualify("search", "web") == "web:search"
-    assert AgentFlowSandboxClient._qualify("rag:search", "web") == "rag:search"
+def test_http_client_qualify_prefix():
+    assert HTTPSandboxClient._qualify("search", "web") == "web:search"
+    assert HTTPSandboxClient._qualify("rag:search", "web") == "rag:search"
 
 
 # --------------------------------------------------------------------------- #
@@ -815,7 +815,7 @@ def test_coding_sandbox_in_registry_via_import():
 
 
 # --------------------------------------------------------------------------- #
-# TrajectorySelector (ported from AgentFlow: top-N diverse selection)
+# TrajectorySelector (top-N diverse selection)
 # --------------------------------------------------------------------------- #
 def _traj_with(tools_and_obs, task="t", success=True):
     """Build a trajectory with given (tool, observation) per step."""
@@ -894,8 +894,8 @@ def test_selector_registered():
     assert OPERATOR_REGISTRY.get("TrajectorySelector") is TrajectorySelector
 
 
-def test_selector_score_matches_agentflow_formula():
-    """Faithful-port check: score equals AgentFlow's depth+info+diversity."""
+def test_selector_score_matches_formula():
+    """Score equals depth(40)+info(30)+diversity(30)."""
     # single trajectory pool -> info normalization is 0 (min==max), so only
     # depth(40 capped at 5 steps) + diversity apply.
     t = _traj_with([("search", "x"), ("read", "y"), ("exec", "z")])  # 4 steps, 4 tools

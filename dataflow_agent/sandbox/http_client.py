@@ -1,18 +1,17 @@
 """
-AgentFlow sandbox client -- talks to an AgentFlow sandbox server purely over
-its HTTP protocol.
+HTTP sandbox client -- talks to a remote sandbox server purely over HTTP.
 
 Decoupling note
 ---------------
-This module imports **nothing** from AgentFlow.  It only reproduces the wire
-contract of the AgentFlow sandbox HTTP server (endpoint paths + the
-``{code, message, data, meta}`` envelope).  That keeps DataFlow free of any code
-dependency on a competing project while still being able to drive an
-already-running AgentFlow sandbox during early bring-up.  Swapping in a
-different sandbox later means writing another :class:`SandboxClientABC`
-subclass; these operators do not change.
+This module imports **nothing** from any external sandbox package. It only
+speaks a generic HTTP wire contract (endpoint paths + a
+``{code, message, data, meta}`` response envelope), so DataFlow keeps no code
+dependency on any external project while still being able to drive an
+already-running sandbox server over the network. Swapping in a different
+sandbox later means writing another :class:`SandboxClientABC` subclass; the
+operators do not change.
 
-Protocol (as of the server we target):
+Wire contract (endpoints this client expects the server to expose):
     GET  /health
     GET  /api/v1/tools
     POST /api/v1/execute              {action, params, worker_id, timeout}
@@ -33,7 +32,7 @@ from dataflow import get_logger
 
 from .base import SandboxClientABC, ToolResult, ToolSchema, SandboxError
 
-# Endpoint paths mirrored from the AgentFlow sandbox HTTPEndpoints contract.
+# HTTP endpoint paths this client posts to.
 _EP_HEALTH = "/health"
 _EP_TOOLS = "/api/v1/tools"
 _EP_EXECUTE = "/api/v1/execute"
@@ -41,8 +40,8 @@ _EP_SESSION_CREATE = "/api/v1/session/create"
 _EP_SESSION_DESTROY = "/api/v1/session/destroy"
 
 
-class AgentFlowSandboxClient(SandboxClientABC):
-    """HTTP client for an AgentFlow-protocol sandbox server.
+class HTTPSandboxClient(SandboxClientABC):
+    """HTTP client for a remote sandbox server.
 
     Args:
         base_url: Root URL of the running sandbox server, e.g.
@@ -84,7 +83,7 @@ class AgentFlowSandboxClient(SandboxClientABC):
             import requests  # noqa: F401
         except ImportError as exc:  # pragma: no cover - environment dependent
             raise ImportError(
-                "AgentFlowSandboxClient requires the 'requests' package. "
+                "HTTPSandboxClient requires the 'requests' package. "
                 "Install it with `pip install requests`."
             ) from exc
         import requests
@@ -115,7 +114,7 @@ class AgentFlowSandboxClient(SandboxClientABC):
             except requests.RequestException as exc:  # transient network error
                 last_exc = exc
                 self.logger.warning(
-                    f"[AgentFlowSandboxClient] POST {path} attempt "
+                    f"[HTTPSandboxClient] POST {path} attempt "
                     f"{attempt}/{self.max_retries} failed: {exc}"
                 )
                 if attempt < self.max_retries:
@@ -222,7 +221,7 @@ class AgentFlowSandboxClient(SandboxClientABC):
         try:
             self._post(_EP_SESSION_DESTROY, payload)
         except SandboxError as exc:  # destroy is best-effort
-            self.logger.warning(f"[AgentFlowSandboxClient] destroy_session: {exc}")
+            self.logger.warning(f"[HTTPSandboxClient] destroy_session: {exc}")
         return None
 
     def execute(
@@ -245,7 +244,7 @@ class AgentFlowSandboxClient(SandboxClientABC):
 
     @staticmethod
     def _to_result(body: Dict[str, Any]) -> ToolResult:
-        """Map the AgentFlow ``{code,message,data,meta}`` envelope to ToolResult."""
+        """Map the ``{code,message,data,meta}`` response envelope to ToolResult."""
         code = body.get("code", -1)
         meta = body.get("meta") or {}
         data = body.get("data")

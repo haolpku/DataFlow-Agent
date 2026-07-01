@@ -1,5 +1,5 @@
 """
-E2E: drive the FOUR agentic_explore operators against a REAL AgentFlow
+E2E: drive the FOUR agentic_explore operators against a REAL remote
 text2sql sandbox over HTTP.
 
 LLM is scripted here (deterministic) so this run isolates the sandbox HTTP
@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # DataFlow root 
 
 from dataflow.core import LLMServingABC
 from dataflow.utils.storage import FileStorage
-from dataflow_agent.sandbox import AgentFlowSandboxClient
+from dataflow_agent.sandbox import HTTPSandboxClient
 from dataflow_agent.generate.agent_explore_generator import AgentExploreGenerator
 from dataflow_agent.eval.trajectory_quality_evaluator import TrajectoryQualityEvaluator
 from dataflow_agent.filter.trajectory_filter import TrajectoryFilter
@@ -74,7 +74,7 @@ def main():
     storage = FileStorage(first_entry_file_name=src, cache_path=os.path.join(tmp, "cache"),
                           cache_type="jsonl")
 
-    sandbox = AgentFlowSandboxClient(base_url=args.base_url, domain="text2sql", stateful=False)
+    sandbox = HTTPSandboxClient(base_url=args.base_url, domain="text2sql", stateful=False)
     print(f"[e2e] health_check -> {sandbox.health_check()}")
     print(f"[e2e] list_tools  -> {[t.name for t in sandbox.list_tools('text2sql')]}")
 

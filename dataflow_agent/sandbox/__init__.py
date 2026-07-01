@@ -10,17 +10,17 @@ exposes the minimal contract an exploration loop needs:
     execute(action, params) ->  ToolResult
     destroy_session(...)    ->  None
 
-Concrete backends implement this ABC.  The first one shipped is
-:class:`~dataflow_agent.sandbox.agentflow_client.AgentFlowSandboxClient`,
-which speaks the AgentFlow sandbox HTTP protocol *over the wire only* (plain
-``requests`` POSTs) -- it imports nothing from AgentFlow, so DataFlow keeps no
-code dependency on any external sandbox.  Adding a new sandbox (your own, an
+Concrete backends implement this ABC.  One backend is
+:class:`~dataflow_agent.sandbox.http_client.HTTPSandboxClient`, which drives a
+remote sandbox server over a generic HTTP protocol *over the wire only* (plain
+``requests`` POSTs) -- it imports nothing from any external sandbox package, so
+DataFlow keeps no code dependency on one.  Adding a new sandbox (your own, an
 OpenAI/Anthropic computer-use server, a local Docker harness, ...) is a matter
 of writing another subclass; the operators are untouched.
 """
 
 from .base import SandboxClientABC, ToolResult, ToolSchema, SandboxError
-from .agentflow_client import AgentFlowSandboxClient
+from .http_client import HTTPSandboxClient
 from .mock_client import MockSandboxClient
 from .coding_client import CodingSandboxClient
 
@@ -29,7 +29,7 @@ __all__ = [
     "ToolResult",
     "ToolSchema",
     "SandboxError",
-    "AgentFlowSandboxClient",
+    "HTTPSandboxClient",
     "MockSandboxClient",
     "CodingSandboxClient",
 ]

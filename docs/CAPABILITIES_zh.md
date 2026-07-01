@@ -16,7 +16,7 @@
 |---|---|---|---|---|
 | **Coding / Working Agent** | `CodingSandboxClient` | `read_file` / `write_file` / `list_files` / `run_python` / `run_tests`(pytest) / `run_shell` | ✅ 真实工作区,已产出 6 条数据 | 修 bug、实现函数、写测试、重构、调试运行时错误 |
 | **知识检索 / 通用探索** | `MockSandboxClient` | `search` / `finish` | ✅ 离线内置,已产出 5 条数据 | 事实问答类多步检索 |
-| **AgentFlow 多环境** | `AgentFlowSandboxClient` | 由 AgentFlow 服务端决定(Web / RAG / Text2SQL / 文档 / 数据分析 …) | ✅ HTTP 协议已对接(需连一个运行中的 AgentFlow sandbox) | 换 `domain` 字符串即可切换环境 |
+| **远程 HTTP 多环境** | `HTTPSandboxClient` | 由远程沙箱服务端决定(Web / RAG / Text2SQL / 文档 / 数据分析 …) | ✅ 通用 HTTP 协议已对接(需连一个运行中的沙箱服务器) | 换 `domain` 字符串即可切换环境 |
 
 ### 🟢 抽象层已支持,写个子类即可接入(文本/结构化环境,零框架改动)
 
@@ -26,7 +26,7 @@
 |---|---|
 | Shell / 命令行 agent | 复用 `CodingSandboxClient` 的 `run_shell`,或写专用子类 |
 | Text2SQL / 数据库 | 子类实现 `get_schema` / `execute`(有状态,加 session 生命周期) |
-| Web 搜索 / RAG 检索 | 子类实现 `search` / `visit`,或走 AgentFlow |
+| Web 搜索 / RAG 检索 | 子类实现 `search` / `visit`,或走远程 HTTP 沙箱 |
 | 文档问答 | 子类实现 `doc_search` / `doc_read` |
 | 数据分析 | 子类实现 `read_csv` / `run_python` |
 | 任意 API / MCP server / 内部工具 | 子类把调用结果包成 `ToolResult` 即可 |
@@ -73,13 +73,13 @@
 |---|---|
 | `TrajectoryFilter` | 未成功 / 步数越界 / 答案为空 / 解析错误 / 幻觉工具 / 工具报错 / 重复动作死循环 |
 
-### 4. 选择(Selector,移植自 AgentFlow)
+### 4. 选择(Selector)
 
 | 算子 | 作用 |
 |---|---|
-| `TrajectorySelector` | 从候选轨迹池里**确定性地选 top-N 条高质量且多样**的轨迹(无 LLM)。三维打分:深度(40)+ 信息量(30)+ 工具多样性(30),满分 100;再用**动作集合 Jaccard 相似度去重**(阈值 0.7)。两种模式:`tree`(从探索树的多条 paths 里每棵选 N 条)/ `rows`(把整表轨迹当候选池选 N 行)。**打分公式与 AgentFlow `selector` 逐值一致**。 |
+| `TrajectorySelector` | 从候选轨迹池里**确定性地选 top-N 条高质量且多样**的轨迹(无 LLM)。三维打分:深度(40)+ 信息量(30)+ 工具多样性(30),满分 100;再用**动作集合 Jaccard 相似度去重**(阈值 0.7)。两种模式:`tree`(从探索树的多条 paths 里每棵选 N 条)/ `rows`(把整表轨迹当候选池选 N 行)。 |
 
-> 与 Filter 的区别:Filter 是"逐条判定好坏、丢掉坏的";Selector 是"从一堆里挑出最好且互不重复的 N 条",对应 AgentFlow「一个 seed → 一棵树 → 选 N 条精华」。
+> 与 Filter 的区别:Filter 是"逐条判定好坏、丢掉坏的";Selector 是"从一堆里挑出最好且互不重复的 N 条"(一个 seed → 一棵树 → 选 N 条精华)。
 
 ### 5. 修复(Refiner)
 
@@ -117,12 +117,12 @@
 |---|---|
 | Coding/Working Agent 环境 | ✅ 已产出数据 |
 | 知识检索环境(Mock) | ✅ 已产出数据 |
-| AgentFlow 多环境(HTTP) | ✅ 已对接,待接真实服务端批量产数据 |
+| 远程 HTTP 多环境 | ✅ 已对接,待接真实服务端批量产数据 |
 | 线性轨迹生成 | ✅ |
-| 分支探索树生成 | ✅(支持 AgentFlow 式 depth_threshold:深层收敛单路省算力) |
+| 分支探索树生成 | ✅(支持 depth_threshold:深层收敛单路省算力) |
 | 质量评估(四维打分) | ✅ |
 | 规则过滤 | ✅ 已验证 |
-| 轨迹选择(Selector,移植自 AgentFlow) | ✅ 已实现 + 测试 + 与原版打分逐值对拍一致 |
+| 轨迹选择(Selector) | ✅ 已实现 + 测试 |
 | 轨迹修复(Refiner) | ✅ 已实现 + 测试通过,🔜 待沉淀展示样本 |
 | 偏好对导出(DPO) | 🔜 路线图 |
 | 多模态(GUI/VM 图像) | 🔜 路线图(需框架改造) |
@@ -132,5 +132,5 @@
 ## 五、一句话给不同读者
 
 - **想扩环境的**:文本/结构化环境写个 `SandboxClientABC` 子类就行,五个算子不动;GUI/VM 要等多模态。
-- **想要数据的**:现在能拿 Coding、知识检索、探索树三类轨迹(带质量分),AgentFlow 接上后可扩到 Web/RAG/SQL/文档/数据分析。
+- **想要数据的**:现在能拿 Coding、知识检索、探索树三类轨迹(带质量分),接上远程 HTTP 沙箱后可扩到 Web/RAG/SQL/文档/数据分析。
 - **想看效果的**:去展示站「Agentic 轨迹合成」分类,12 条真实样本,每步思考/工具/观察全可见。

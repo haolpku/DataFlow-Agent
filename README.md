@@ -72,11 +72,11 @@ python examples/agentic_explore/run_mock_pipeline.py
 import dataflow_agent                                    # registers the operators
 from dataflow.serving import APILLMServing_request       # from open-dataflow
 from dataflow.utils.storage import FileStorage
-from dataflow_agent import AgentExploreGenerator, AgentFlowSandboxClient
+from dataflow_agent import AgentExploreGenerator, HTTPSandboxClient
 
 storage = FileStorage(first_entry_file_name="queries.jsonl", cache_path="./cache")
 llm     = APILLMServing_request(api_url="https://.../v1/chat/completions", model_name="gpt-4o")
-sandbox = AgentFlowSandboxClient(base_url="http://127.0.0.1:18890", domain="text2sql")
+sandbox = HTTPSandboxClient(base_url="http://127.0.0.1:18890", domain="text2sql")
 
 op = AgentExploreGenerator(llm_serving=llm, sandbox=sandbox, domain="text2sql",
                            max_steps=10, max_workers=8)
@@ -90,13 +90,13 @@ op.run(storage.step(), input_key="query", output_key="trajectory")
 | Stage | Operator | What it does | LLM? |
 |---|---|---|:--:|
 | **Generate** | `AgentExploreGenerator` | Linear trajectory — one think→act→observe chain per task. | ✅ |
-| **Generate** | `AgentExploreTreeGenerator` | Branching **trajectory tree** — samples N candidate actions per node, dedups, expands (depth/breadth/node-bounded, AgentFlow-style `depth_threshold`). Emits the tree **and** its root-to-leaf `paths` as linear trajectories. | ✅ |
+| **Generate** | `AgentExploreTreeGenerator` | Branching **trajectory tree** — samples N candidate actions per node, dedups, expands (depth/breadth/node-bounded, with a `depth_threshold`). Emits the tree **and** its root-to-leaf `paths` as linear trajectories. | ✅ |
 | **Evaluate** | `TrajectoryQualityEvaluator` | **LLM-as-judge** on 4 axes (goal / efficiency / coherence / tool-use, 1–5) + `overall` ∈ [0,1] + rationale. | ✅ |
-| **Select** | `TrajectorySelector` | **Top-N diverse selection** (ported from AgentFlow): score by depth(40)+info(30)+tool-diversity(30), then Jaccard de-dup. Deterministic. | ❌ |
+| **Select** | `TrajectorySelector` | **Top-N diverse selection**: score by depth(40)+info(30)+tool-diversity(30), then Jaccard de-dup. Deterministic. | ❌ |
 | **Filter** | `TrajectoryFilter` | **Rule-based quality gate** (success / step bounds / parse-error / hallucinated-tool / tool-error / repeated-action loop / empty answer). Deterministic. | ❌ |
 | **Refine** | `TrajectoryRefiner` | Re-explores **failed / low-scoring** trajectories primed with a diagnosis of what went wrong; good ones pass through untouched. | ✅ |
 
-> **Select vs Filter** — Filter judges each trajectory good/bad and drops the bad. Selector picks the best *N distinct* from a pool (AgentFlow's "one seed → one tree → N gems").
+> **Select vs Filter** — Filter judges each trajectory good/bad and drops the bad. Selector picks the best *N distinct* from a pool ("one seed → one tree → N gems").
 
 ### Output schema
 
@@ -121,7 +121,7 @@ A sandbox is any `SandboxClientABC` subclass. Adding one = implement `list_tools
 | Backend | Module | Use case |
 |---|---|---|
 | `CodingSandboxClient` | `sandbox/coding_client.py` | **Real coding agent** — isolated workspace with `read_file` / `write_file` / `run_python` / `run_tests` (pytest) / `run_shell`. Fix bugs, implement functions, run tests. |
-| `AgentFlowSandboxClient` | `sandbox/agentflow_client.py` | Talks to an AgentFlow-protocol sandbox **over HTTP only** (plain `requests`) — imports nothing from any sandbox SDK. Covers all of AgentFlow's text domains (web / rag / text2sql / doc / ds). |
+| `HTTPSandboxClient` | `sandbox/http_client.py` | Drives a remote sandbox server **over HTTP only** (plain `requests`) — imports nothing from any sandbox SDK. Works with any server speaking the generic `{code,message,data,meta}` protocol (web / rag / text2sql / doc / ds domains). |
 | `MockSandboxClient` | `sandbox/mock_client.py` | Offline, network-free. For tests / dev. |
 | *your own* | add a subclass | Wrap any API / MCP server / tool as `ToolResult`. |
 
@@ -144,7 +144,7 @@ A **text / structured-domain** explorer (web · rag · sql · doc · ds · codin
 ## 🗺️ Roadmap
 
 - [x] Generator → Evaluator → Filter → **Refiner** loop (repair, not just drop)
-- [x] **TrajectorySelector** — AgentFlow's top-N diverse selection algorithm
+- [x] **TrajectorySelector** — top-N diverse selection algorithm
 - [x] **CodingSandboxClient** — real workspace + pytest
 - [ ] **Multimodal explorer** for GUI/VM (image observations)
 - [ ] **Preference-pair export** (best vs. worst sibling paths → DPO data)

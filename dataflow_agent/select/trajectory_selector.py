@@ -1,14 +1,13 @@
 """
 TrajectorySelector -- deterministic top-N diverse trajectory selection.
 
-Ported from AgentFlow's ``synthesis/core/selector.py`` (``TrajectorySelector``)
-into the DataFlow-Agent operator framework. Where ``TrajectoryFilter`` keeps or
-drops each trajectory by boolean rules, and ``TrajectoryQualityEvaluator`` scores
-with an LLM, this operator does something neither does: from a *pool* of
-candidate trajectories it **picks the best N while enforcing diversity** -- no
-LLM calls, fully deterministic.
+A tree-search-style selection algorithm brought into the DataFlow-Agent operator
+framework. Where ``TrajectoryFilter`` keeps or drops each trajectory by boolean
+rules, and ``TrajectoryQualityEvaluator`` scores with an LLM, this operator does
+something neither does: from a *pool* of candidate trajectories it **picks the
+best N while enforcing diversity** -- no LLM calls, fully deterministic.
 
-Scoring (identical weights to AgentFlow's ``_score_path``):
+Scoring:
     - depth_score     = min(len(steps) / 5.0, 1.0) * 40
     - info_score      = normalized(avg observation length) * 30   # min/max over the pool
     - diversity_score = (distinct tool count / total_tools) * 30
@@ -18,17 +17,16 @@ Selection: sort by score desc, greedily take the top ones, but skip a candidate
 whose action-set Jaccard similarity to an already-selected trajectory exceeds
 ``path_similarity_threshold`` (default 0.7). Keep at most ``max_selected``.
 
-AgentFlow uses ``node_id`` sets for Jaccard over a tree; DataFlow-Agent's
-flattened linear trajectories have no node ids, so we use the set of per-step
-action signatures ``(tool, canonical_json(args))`` -- semantically the same
-measure of how much two trajectories overlap in what they *did*.
+Jaccard is computed over each trajectory's set of per-step action signatures
+``(tool, canonical_json(args))`` -- a measure of how much two trajectories
+overlap in what they *did*.
 
 Two input modes (auto-detected from the column contents):
 
 * **mode "tree"** -- ``input_key`` points at the ``AgentExploreTreeGenerator``
   output (a dict carrying a ``paths`` list). For each row (one task's tree) we
   select the top-N of its ``paths`` and write the list to ``output_key``. This
-  is the canonical AgentFlow usage: one seed -> one tree -> N chosen paths.
+  is the canonical usage: one seed -> one tree -> N chosen paths.
 * **mode "rows"** -- ``input_key`` points at a linear-trajectory column (e.g.
   the Generator's ``trajectory``). The whole DataFrame is one candidate pool; we
   keep the selected rows and drop the rest (like a Filter, but by score +
@@ -77,13 +75,13 @@ def _action_signature(step: Dict[str, Any]) -> str:
 
 @OPERATOR_REGISTRY.register()
 class TrajectorySelector(OperatorABC):
-    """Deterministic top-N diverse trajectory selector (ported from AgentFlow).
+    """Deterministic top-N diverse trajectory selector.
 
     Args:
         max_selected: Max trajectories to keep (per tree in "tree" mode, or from
             the whole pool in "rows" mode).
         min_depth: Drop trajectories with fewer than this many steps before
-            scoring (AgentFlow's valid-leaf depth filter).
+            scoring (valid-leaf depth filter).
         path_similarity_threshold: Jaccard similarity (over per-step action
             signatures) above which a candidate is considered a near-duplicate
             of an already-selected trajectory and skipped. Default 0.7.
@@ -116,8 +114,8 @@ class TrajectorySelector(OperatorABC):
         if lang == "zh":
             return (
                 "该算子从候选轨迹中确定性地挑选 top-N 条高质量且多样的轨迹"
-                "(移植自 AgentFlow 的 selection 算法,无 LLM 调用)。\n\n"
-                "打分(权重与 AgentFlow 一致,满分 100):\n"
+                "(确定性树搜索选择算法,无 LLM 调用)。\n\n"
+                "打分(满分 100):\n"
                 "- 深度分 = min(步数/5, 1) * 40\n"
                 "- 信息量分 = 归一化(平均 observation 长度) * 30\n"
                 "- 多样性分 = (使用的不同工具数 / total_tools) * 30\n\n"
@@ -131,7 +129,7 @@ class TrajectorySelector(OperatorABC):
             )
         return (
             "Deterministically selects the top-N diverse trajectories from a "
-            "candidate pool (ported from AgentFlow's selection algorithm; no LLM). "
+            "candidate pool (deterministic tree-search selection; no LLM). "
             "Scores by depth(40) + info-length(30) + tool-diversity(30), then "
             "greedily picks best-first while skipping near-duplicates by action-set "
             "Jaccard similarity (> path_similarity_threshold). Modes: 'tree' selects "
@@ -140,7 +138,7 @@ class TrajectorySelector(OperatorABC):
         )
 
     # ------------------------------------------------------------------ #
-    # scoring (faithful port of AgentFlow selector._score_path)
+    # scoring: depth + info-length + tool-diversity
     # ------------------------------------------------------------------ #
     @staticmethod
     def _avg_obs_length(traj: Dict[str, Any]) -> float:
@@ -195,7 +193,7 @@ class TrajectorySelector(OperatorABC):
         Also stashes per-index scores in ``self._last_scores``.
         """
         self._last_scores: Dict[int, float] = {}
-        # depth filter first (AgentFlow valid-leaves)
+        # depth filter first (drop shallow trajectories)
         cand_idx = [i for i, t in enumerate(trajs)
                     if len(t.get("steps") or []) >= self.min_depth]
         if not cand_idx:

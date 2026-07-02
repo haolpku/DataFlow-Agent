@@ -38,6 +38,7 @@ Tools advertised
 
 from __future__ import annotations
 
+import atexit
 import os
 import shutil
 import subprocess
@@ -63,6 +64,21 @@ class CodingSandboxClient(SandboxClientABC):
         timeout: Per-command wall-clock timeout (seconds).
         max_output_chars: Truncate captured stdout/stderr to this many chars.
         python_executable: Interpreter used by ``run_python`` / ``run_tests``.
+        cleanup_on_exit: Register an atexit hook to remove ``root`` when the
+            process exits (belt-and-suspenders beyond per-session destroy, so a
+            crashed/interrupted run does not leak temp workspaces). Only applies
+            when ``root`` was auto-created (a temp dir); a user-supplied ``root``
+            is never auto-deleted. Default True.
+
+    Concurrency note:
+        Each task/worker gets its own ``root/<worker_id>/`` directory, so many
+        episodes run concurrently without clobbering each other. But
+        ``run_python`` / ``run_tests`` / ``run_shell`` spawn **real
+        subprocesses** -- unlike API-only sandboxes, high concurrency here is a
+        genuine CPU/disk load. Bound the *operator's* ``max_workers`` to roughly
+        the machine's core count for coding domains (see
+        :func:`recommended_max_workers`), not the large values used for pure-API
+        domains.
     """
 
     #: Coding tasks are stateful: each task owns a workspace that must be created
@@ -78,7 +94,9 @@ class CodingSandboxClient(SandboxClientABC):
         timeout: float = 30.0,
         max_output_chars: int = 8000,
         python_executable: Optional[str] = None,
+        cleanup_on_exit: bool = True,
     ):
+        self._auto_root = root is None
         self.root = root or tempfile.mkdtemp(prefix="coding_sandbox_")
         os.makedirs(self.root, exist_ok=True)
         self.seed_files = seed_files or {}
@@ -88,6 +106,25 @@ class CodingSandboxClient(SandboxClientABC):
         self.python_executable = python_executable or sys.executable
         # worker_id -> absolute workspace path
         self._workspaces: Dict[str, str] = {}
+
+        # Belt-and-suspenders: even if destroy_session/close are never reached
+        # (crash, KeyboardInterrupt), don't leak the auto-created temp root.
+        # Use a weakref so the hook doesn't keep the client alive, and only
+        # delete a root we created ourselves.
+        if cleanup_on_exit and self._auto_root:
+            root_path = self.root
+            atexit.register(lambda p=root_path: shutil.rmtree(p, ignore_errors=True))
+
+    @staticmethod
+    def recommended_max_workers(cap: Optional[int] = None) -> int:
+        """Suggested operator ``max_workers`` for coding domains.
+
+        Coding episodes spawn real subprocesses, so concurrency is CPU-bound
+        (unlike pure-API domains, which are network-bound). Default to the core
+        count, optionally clamped by ``cap``.
+        """
+        cores = os.cpu_count() or 4
+        return min(cores, cap) if cap else cores
 
     # ------------------------------------------------------------------ #
     # tool catalog

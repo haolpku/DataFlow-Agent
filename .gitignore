@@ -6,3 +6,7 @@ __pycache__/
 *.egg-info/
 .DS_Store
 cache/
+
+# local-only research notes (do not publish)
+docs/MCTS_EXPLORATION_zh.md
+docs/*_local.md

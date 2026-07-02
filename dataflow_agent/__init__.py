@@ -33,6 +33,9 @@ from dataflow_agent.sandbox import (
     CodingSandboxClient,
 )
 
+# Scale-out helper: sharded, resumable execution for large runs.
+from dataflow_agent.runner import sharded_run
+
 __all__ = [
     "AgentExploreGenerator",
     "AgentExploreTreeGenerator",
@@ -47,6 +50,7 @@ __all__ = [
     "MockSandboxClient",
     "HTTPSandboxClient",
     "CodingSandboxClient",
+    "sharded_run",
 ]
 
 __version__ = "0.1.0"

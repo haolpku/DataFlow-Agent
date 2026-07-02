@@ -34,6 +34,7 @@ the refined column is the clean way to decide whether the repair actually helped
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -265,6 +266,43 @@ class TrajectoryRefiner(OperatorABC):
         return False
 
     # ------------------------------------------------------------------ #
+    def _refine_one(
+        self, value: Any, score: Any, system_prompt: str, known_tools,
+    ) -> Dict[str, Any]:
+        """Process one row. Returns a dict of the per-row output fields.
+
+        Pure w.r.t. shared state (no mutation of self), so it is safe to run
+        concurrently across a thread pool -- mirrors the Generator's episode
+        isolation. The internal Generator mints its own worker_id per episode,
+        so stateful sandboxes stay isolated per row.
+        """
+        traj = _as_traj(value)
+        if not self._should_refine(traj, score):
+            return {"traj": value, "original": None, "refined": False,
+                    "note": "kept (passed quality / unparseable)",
+                    "improved": False}
+
+        diagnosis = self._diagnose(traj)
+        prior = self._render_prior(traj)
+        augmented_task = _REFINE_PREAMBLE.format(
+            prior=prior, diagnosis=diagnosis, task=traj.get("task", ""),
+        )
+        try:
+            repaired = self._gen._run_episode(
+                augmented_task, system_prompt, known_tools
+            )
+        except Exception as exc:  # noqa: BLE001 - isolate per-row failure
+            self.logger.error(f"[TrajectoryRefiner] refine failed: {exc}")
+            return {"traj": value, "original": None, "refined": False,
+                    "note": f"refine_error: {exc}", "improved": False}
+
+        # Restore the original task string so the refined trajectory compares
+        # cleanly against the original (the episode ran on the augmented prompt).
+        repaired["task"] = traj.get("task", "")
+        improved = bool(repaired.get("success") and not traj.get("success"))
+        return {"traj": repaired, "original": traj, "refined": True,
+                "note": f"refined: {diagnosis}", "improved": improved}
+
     def run(
         self,
         storage: DataFlowStorage,
@@ -292,59 +330,39 @@ class TrajectoryRefiner(OperatorABC):
             tool_catalog=self._gen._render_tool_catalog(tools)
         )
 
-        new_trajs: List[Any] = []
-        originals: List[Any] = []
-        refined_flags: List[bool] = []
-        notes: List[str] = []
-        n_refined = 0
-        n_improved_success = 0
+        values = df[input_key].tolist()
+        results: List[Optional[Dict[str, Any]]] = [None] * len(values)
 
-        for value, score in zip(df[input_key].tolist(), scores):
-            traj = _as_traj(value)
-            if not self._should_refine(traj, score):
-                new_trajs.append(value)
-                originals.append(None)
-                refined_flags.append(False)
-                notes.append("kept (passed quality / unparseable)")
-                continue
+        # Concurrent refinement (episodes are I/O-bound: LLM + sandbox). Only the
+        # rows that trigger a refine actually cost an episode; the rest return
+        # immediately. Results are written back by index to preserve row order.
+        with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
+            fut_to_idx = {
+                pool.submit(self._refine_one, val, sc, system_prompt, known_tools): i
+                for i, (val, sc) in enumerate(zip(values, scores))
+            }
+            for fut in as_completed(fut_to_idx):
+                idx = fut_to_idx[fut]
+                try:
+                    results[idx] = fut.result()
+                except Exception as exc:  # noqa: BLE001 - never let one row kill the batch
+                    self.logger.error(f"[TrajectoryRefiner] row {idx} crashed: {exc}")
+                    results[idx] = {"traj": values[idx], "original": None,
+                                    "refined": False, "note": f"crash: {exc}",
+                                    "improved": False}
 
-            diagnosis = self._diagnose(traj)
-            prior = self._render_prior(traj)
-            augmented_task = _REFINE_PREAMBLE.format(
-                prior=prior, diagnosis=diagnosis, task=traj.get("task", ""),
-            )
-            try:
-                repaired = self._gen._run_episode(
-                    augmented_task, system_prompt, known_tools
-                )
-            except Exception as exc:  # noqa: BLE001 - isolate per-row failure
-                self.logger.error(f"[TrajectoryRefiner] refine failed: {exc}")
-                new_trajs.append(value)
-                originals.append(None)
-                refined_flags.append(False)
-                notes.append(f"refine_error: {exc}")
-                continue
-
-            # The repair episode's task is the augmented prompt; restore the
-            # original task string so the refined trajectory is comparable.
-            repaired["task"] = traj.get("task", "")
-            new_trajs.append(repaired)
-            originals.append(traj)
-            refined_flags.append(True)
-            notes.append(f"refined: {diagnosis}")
-            n_refined += 1
-            if repaired.get("success") and not traj.get("success"):
-                n_improved_success += 1
-
-        df[output_key] = new_trajs
+        df[output_key] = [r["traj"] for r in results]
         if self.original_key is not None:
-            df[self.original_key] = originals
-        df["_refined"] = refined_flags
-        df["_refine_note"] = notes
+            df[self.original_key] = [r["original"] for r in results]
+        df["_refined"] = [r["refined"] for r in results]
+        df["_refine_note"] = [r["note"] for r in results]
 
+        n_refined = sum(1 for r in results if r["refined"])
+        n_improved_success = sum(1 for r in results if r["improved"])
         self.logger.info(
             f"[TrajectoryRefiner] refined {n_refined}/{len(df)} trajectories "
-            f"(domain={self.domain}); {n_improved_success} went failed->success."
+            f"(domain={self.domain}, max_workers={self.max_workers}); "
+            f"{n_improved_success} went failed->success."
         )
         storage.write(df)
         return [output_key]

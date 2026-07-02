@@ -931,5 +931,69 @@ def test_tree_depth_threshold_collapses_branching():
     assert narrow_rec["num_nodes"] <= wide_rec["num_nodes"]
 
 
+# --------------------------------------------------------------------------- #
+# Concurrency / scale-out improvements
+# --------------------------------------------------------------------------- #
+def test_refiner_concurrent_preserves_order_and_repairs():
+    """Refiner runs rows concurrently; order preserved, failed rows repaired."""
+    rows = [{"trajectory": _failed_traj(task=f"task {i}")} for i in range(6)]
+    storage = _make_storage(rows)
+    op = TrajectoryRefiner(
+        llm_serving=_RepairLLM(), sandbox=MockSandboxClient(), domain="mock",
+        max_steps=5, max_workers=4, score_threshold=None,
+    )
+    op.run(storage.step(), input_key="trajectory", output_key="trajectory")
+    out = storage.step().read(output_type="dataframe")
+    assert len(out) == 6
+    # every row refined to success, and row order preserved (task i stays at i)
+    for i, row in out.iterrows():
+        t = row["trajectory"]
+        if isinstance(t, str):
+            t = json.loads(t)
+        assert t["success"] is True
+        assert t["task"] == f"task {i}"
+        assert bool(row["_refined"]) is True
+
+
+def test_coding_sandbox_recommended_max_workers():
+    n = CodingSandboxClient.recommended_max_workers()
+    assert isinstance(n, int) and n >= 1
+    assert CodingSandboxClient.recommended_max_workers(cap=2) <= 2
+
+
+def test_coding_sandbox_user_root_not_auto_cleaned():
+    import tempfile as _tf
+    sb_auto = CodingSandboxClient(allow_shell=False)   # temp root -> auto cleanup
+    assert sb_auto._auto_root is True and os.path.isdir(sb_auto.root)
+    user_root = _tf.mkdtemp()
+    sb_user = CodingSandboxClient(root=user_root, allow_shell=False)
+    assert sb_user._auto_root is False
+    sb_user.close()
+
+
+def test_sharded_run_resumes():
+    """sharded_run splits, runs each shard, and skips completed shards on rerun."""
+    from dataflow_agent.runner import sharded_run
+    import tempfile
+    out_dir = tempfile.mkdtemp()
+    rows = [{"query": f"q{i}"} for i in range(7)]
+    calls = {"n": 0}
+
+    def run_shard(storage, **kw):
+        calls["n"] += 1
+        # mimic an operator: advance one step, read seed, write through
+        df = storage.step().read(output_type="dataframe")
+        storage.write(df)
+
+    s1 = sharded_run(rows, run_shard, out_dir, shard_size=3)  # 7 -> 3 shards
+    assert s1["total_shards"] == 3
+    assert s1["ran"] == 3 and s1["skipped"] == 0
+    assert calls["n"] == 3
+
+    s2 = sharded_run(rows, run_shard, out_dir, shard_size=3)  # rerun -> all skipped
+    assert s2["skipped"] == 3 and s2["ran"] == 0
+    assert calls["n"] == 3  # run_shard not called again
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

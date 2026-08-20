@@ -1,12 +1,37 @@
+# Python bytecode and caches
 __pycache__/
-*.pyc
-*.pyo
-.pytest_cache/
-.cache/
-*.egg-info/
-.DS_Store
-cache/
+*.py[cod]
+*$py.class
 
-# local-only research notes (do not publish)
-docs/MCTS_EXPLORATION_zh.md
-docs/*_local.md
+# Build and packaging artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Test, coverage, and type-checking caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+/env/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+
+# Local runtime output
+*.log
+runs/

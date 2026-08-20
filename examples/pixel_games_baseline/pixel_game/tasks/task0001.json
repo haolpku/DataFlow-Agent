@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "task_id": "task0001",
+  "env_id": "pixel_game",
+  "seed": 12,
+  "task_name": "collect_and_reach_goal",
+  "task_version": 1,
+  "instruction": "完成画面中的网格任务：将 BOT 从 START 移动到 GOAL，并收集全部宝石。可以使用 observe 查看画面、使用 play 移动；只有在实际画面确认 BOT 已到达 GOAL 且所有宝石均已收集后才能调用 finish。请使用中文进行简要推理并给出最终回答；工具名、方向枚举和 JSON 键保持英文。",
+  "public_config": {"controls": ["up", "down", "left", "right"]},
+  "init_config": {"columns": 8, "rows": 5, "start": [0, 3], "goal": [7, 2], "items": [[3, 3], [5, 3], [6, 3]], "obstacles": [[1, 0], [3, 0], [0, 0], [2, 4], [3, 4], [2, 0]], "mission": "COMET-4729"},
+  "task_data": {},
+  "episode_config": {"max_steps": 6},
+  "verifier": {"kind": "state_predicate", "aggregation": "all", "checks": [{"check_id": "at_goal", "description": "The BOT ends at the task's goal position.", "predicate": {"path": ["player"], "op": "equals", "value": [7, 2]}}, {"check_id": "all_gems_collected", "description": "No required gems remain on the grid.", "predicate": {"path": ["remaining_items"], "op": "empty"}}]},
+  "judge_ref": {"rubric_version": 1, "rubric_authority": "vlm_trajectory_judge", "task_name": "collect_and_reach_goal", "task_version": 1, "task_specific_evidence": ["the BOT must visibly end at GOAL", "no gems may remain"], "common_failure_modes": ["trusting a final-answer claim", "stopping at GOAL with gems remaining", "hallucinating visible state"]},
+  "provenance": {"kind": "reviewed_materialized_task", "source": "example"}
+}

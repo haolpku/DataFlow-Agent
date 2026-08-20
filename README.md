@@ -1,156 +1,283 @@
-<div align="center">
+# DataFlow-MM-Agent
 
-# 🐺 DataFlow-Agent
+`dataflow-mm-agent` 是 DataFlow-MM 的独立多模态 Agent 扩展包，提供受控环境
+中的 Agent rollout、轨迹处理、环境插件注册以及模型服务适配能力。
 
-**Synthesize, score, and refine agent trajectories — high-quality training data for tool-using LLMs.**
+- 发行包名：`dataflow-mm-agent`
+- Python import 名：`dataflow_mm_agent`
+- Python：`>=3.10, <4`
+- License：Apache-2.0
 
-Agentic-exploration operators for [DataFlow](https://github.com/OpenDCAI/DataFlow): drive an LLM agent through a **pluggable sandbox** to produce the
-`task → [thought → tool call → observation]* → answer` data used to train and evaluate agentic models.
+## 包含与不包含的内容
 
-[![tests](https://img.shields.io/badge/tests-42%20passing-brightgreen)](test/test_agentic_explore.py)
-[![python](https://img.shields.io/badge/python-3.9%2B-blue)](pyproject.toml)
-[![built on](https://img.shields.io/badge/built%20on-open--dataflow-6c8cff)](https://github.com/OpenDCAI/DataFlow)
-[![license](https://img.shields.io/badge/license-Apache--2.0-lightgrey)](#)
+本包包含：
 
-[Quickstart](#-quickstart) · [Operators](#-the-pipeline) · [Sandboxes](#-pluggable-sandboxes) · [Docs](#-documentation) · [Roadmap](#-roadmap)
+- 多模态消息、工具、任务、环境和轨迹契约；
+- linear rollout 与 tree exploration runtime；
+- `finish`、可选 workspace host tools；
+- OpenAI-compatible 和 Gemini/Kigress serving；
+- JSON Task/Trajectory 存储；
+- Generate、Judge、Filter、Refine、Select、Replay Verify 算子；
+- 外部 Env 包的注册与发现机制。
 
-</div>
+`dataflow_mm_agent/` 核心库不包含：
 
----
+- 具体环境实现和任务 JSON；
+- API key、`.env.local` 或本地模型服务。
 
-## ✨ Why DataFlow-Agent
+具体环境应作为独立 Env 包安装，或由业务代码显式注册。仓库中的
+`examples/pixel_games_baseline/` 仅作为可直接运行的接入示例，不会被核心库
+自动导入或注册。
 
-Most sandboxes only **collect** trajectories. DataFlow-Agent **collects, scores, selects, and repairs** them — turning raw agent rollouts into training-grade data through a full pipeline:
+## 从 GitHub 安装
 
-```
-                 seed tasks
-                     │
-   ┌─────────────────▼─────────────────┐
-   │  GENERATE   explore a sandbox      │   linear chain  ──►  AgentExploreGenerator
-   │             (think → act → observe)│   branching tree ──► AgentExploreTreeGenerator
-   └─────────────────┬─────────────────┘
-                     │  trajectories
-   ┌─────────────────▼─────────────────┐
-   │  EVALUATE   LLM-as-judge (4 axes)  │  ──► TrajectoryQualityEvaluator
-   └─────────────────┬─────────────────┘
-                     │  + quality scores
-   ┌─────────────────▼─────────────────┐
-   │  SELECT/FILTER  keep the good ones │  ──► TrajectorySelector (top-N diverse)
-   │                                    │      TrajectoryFilter    (rule-based gate)
-   └─────────────────┬─────────────────┘
-                     │  high-quality set
-   ┌─────────────────▼─────────────────┐
-   │  REFINE     repair the salvageable │  ──► TrajectoryRefiner
-   └─────────────────┬─────────────────┘
-                     ▼
-            training-grade dataset
-```
+先确保 `open-dataflow-mm` 可以从当前 Python 索引安装；如果它不在索引中，
+需要先单独安装其 wheel 或源码包。
 
-**Zero coupling.** Operators depend only on two abstractions — `LLMServingABC` (decides / judges) and `SandboxClientABC` (executes). They never import a concrete sandbox. Swap the backend, the operators don't change.
-
----
-
-## 🚀 Quickstart
+克隆仓库并安装：
 
 ```bash
-# 1. install (open-dataflow provides OperatorABC / LLMServingABC / registry / storage)
-pip install open-dataflow
-pip install -e .
-
-# 2. run the offline test suite — 42 tests, no network / GPU / API key
-pytest test/test_agentic_explore.py -v
-
-# 3. run the offline demo (mock sandbox + scripted LLM)
-python examples/agentic_explore/run_mock_pipeline.py
+git clone https://github.com/YOUR_ORG/dataflow-mm-agent.git
+cd dataflow-mm-agent
+python -m pip install .
 ```
 
-`import dataflow_agent` registers every operator into DataFlow's `OPERATOR_REGISTRY`, so they resolve by name like any built-in operator.
+也可以直接通过 Git URL 安装：
 
-### Wiring a real run
+```bash
+python -m pip install \
+  "git+https://github.com/YOUR_ORG/dataflow-mm-agent.git@main"
+```
+
+检查安装结果：
+
+```bash
+python - <<'PY'
+import dataflow_mm_agent
+from dataflow.utils.registry import OPERATOR_REGISTRY
+
+print(dataflow_mm_agent.__version__)
+print(sorted(
+    name for name in OPERATOR_REGISTRY.keys()
+    if name.startswith("AgentMM")
+))
+PY
+```
+
+导入 `dataflow_mm_agent` 时会向 DataFlow-MM 的 `OPERATOR_REGISTRY` 注册：
+
+- `AgentMMExploreGenerator`
+- `AgentMMExploreTreeGenerator`
+- `AgentMMTrajectoryQualityEvaluator`
+- `AgentMMTrajectoryFilter`
+- `AgentMMTrajectoryRefiner`
+- `AgentMMTrajectorySelector`
+- `AgentMMTrajectoryVerifier`
+
+## 快速运行 PixelGames baseline
+
+仓库内置一个隔离的完整示例，包含 PixelGames Env、任务 JSON、环境 verifier
+以及 Generate → Replay Verify → Judge → Filter/Refine → Select pipeline：
+
+```bash
+# 在仓库根目录安装当前源码
+python -m pip install -e .
+
+cd examples/pixel_games_baseline
+cp .env.example .env.local
+# 编辑 .env.local，填入 OPENAI_BASE_URL、OPENAI_API_KEY 和 OPENAI_MODEL
+
+# 推荐为每次运行指定一个新目录
+python baseline_pipeline.py \
+  --output-dir runs/first_run \
+  --max-workers 1 \
+  --max-tokens 8192 \
+  --timeout 300
+```
+
+接口需要兼容 OpenAI Chat Completions，并支持 vision `image_url` 内容块。不传
+`--max-steps` 时，每个 task 使用其 JSON 中的 `episode_config.max_steps`；传入该参数
+则统一覆盖所有任务的 budget。最终选择结果位于
+`runs/first_run/10_selected.jsonl`，其余 JSONL 保留 pipeline 的各个中间阶段。
+
+完整的输入格式、配置项、运行参数和 01–10 阶段说明见
+[`examples/pixel_games_baseline/README.md`](examples/pixel_games_baseline/README.md)。
+也可以直接打开随仓库发布的
+[`pixelgames_baseline_report.html`](examples/pixel_games_baseline/pixelgames_baseline_report.html)
+查看四任务完整运行、中文 Judge rubric 和多模态 Refine 示例。
+另有一份
+[`why_we_need_verifier_task0003.html`](examples/pixel_games_baseline/why_we_need_verifier_task0003.html)
+展示 VLM Judge false positive，解释为什么仍需 deterministic verifier。
+
+## Serving 配置
+
+### OpenAI-compatible
+
+适用于 OpenAI API、vLLM、SGLang 或其他 Chat Completions 兼容服务：
+
+```bash
+export SERVING_BACKEND=openai
+export API_URL=http://127.0.0.1:8000/v1
+export MODEL=your-model-id
+export DF_API_KEY=EMPTY
+```
+
+### Gemini/Kigress
+
+适用于 Gemini `generateContent` 风格的 Kigress 网关：
+
+```bash
+export SERVING_BACKEND=gemini
+export API_URL=http://your-gateway/your-route
+export MODEL=your-gemini-model-id
+export KIGRESS_API_KEY=your-consumer-key
+export KIGRESS_USER_KEY=your-route-key
+export KIGRESS_LLM_MODEL=your-gemini-model-id
+export KIGRESS_BIZ_SCENE=offline
+```
+
+`KIGRESS_LLM_MODEL` 留空时默认使用 `MODEL`。不要把真实凭据提交到 GitHub。
+
+两种后端使用同一个调用接口：
 
 ```python
-import dataflow_agent                                    # registers the operators
-from dataflow.serving import APILLMServing_request       # from open-dataflow
-from dataflow.utils.storage import FileStorage
-from dataflow_agent import AgentExploreGenerator, HTTPSandboxClient
+from dataflow_mm_agent import Message, create_model_serving_from_env
 
-storage = FileStorage(first_entry_file_name="queries.jsonl", cache_path="./cache")
-llm     = APILLMServing_request(api_url="https://.../v1/chat/completions", model_name="gpt-4o")
-sandbox = HTTPSandboxClient(base_url="http://127.0.0.1:18890", domain="text2sql")
-
-op = AgentExploreGenerator(llm_serving=llm, sandbox=sandbox, domain="text2sql",
-                           max_steps=10, max_workers=8)
-op.run(storage.step(), input_key="query", output_key="trajectory")
+serving = create_model_serving_from_env(timeout=120, max_tokens=128)
+response = serving.generate((Message.text("user", "ping"),))
+print(response)
 ```
 
----
+## 接入环境包
 
-## 🧩 The pipeline
+Env 包需要提供一个无参数 `register()` 函数，在其中注册完整的
+`EnvironmentBundle`：
 
-| Stage | Operator | What it does | LLM? |
-|---|---|---|:--:|
-| **Generate** | `AgentExploreGenerator` | Linear trajectory — one think→act→observe chain per task. | ✅ |
-| **Generate** | `AgentExploreTreeGenerator` | Branching **trajectory tree** — samples N candidate actions per node, dedups, expands (depth/breadth/node-bounded, with a `depth_threshold`). Emits the tree **and** its root-to-leaf `paths` as linear trajectories. | ✅ |
-| **Evaluate** | `TrajectoryQualityEvaluator` | **LLM-as-judge** on 4 axes (goal / efficiency / coherence / tool-use, 1–5) + `overall` ∈ [0,1] + rationale. | ✅ |
-| **Select** | `TrajectorySelector` | **Top-N diverse selection**: score by depth(40)+info(30)+tool-diversity(30), then Jaccard de-dup. Deterministic. | ❌ |
-| **Filter** | `TrajectoryFilter` | **Rule-based quality gate** (success / step bounds / parse-error / hallucinated-tool / tool-error / repeated-action loop / empty answer). Deterministic. | ❌ |
-| **Refine** | `TrajectoryRefiner` | Re-explores **failed / low-scoring** trajectories primed with a diagnosis of what went wrong; good ones pass through untouched. | ✅ |
+```python
+from dataflow_mm_agent.env import EnvironmentBundle, register_environment
 
-> **Select vs Filter** — Filter judges each trajectory good/bad and drops the bad. Selector picks the best *N distinct* from a pool ("one seed → one tree → N gems").
 
-### Output schema
-
-Every trajectory row is a flat, judge-ready record:
-
-```json
-{
-  "task": "...",
-  "steps": [{"thought": "...", "action": {"tool": "...", "args": {...}}, "observation": ...}],
-  "final_answer": "...",
-  "num_steps": 3,
-  "success": true
-}
+def register() -> None:
+    register_environment(EnvironmentBundle(
+        spec=ENV_SPEC,
+        env_factory=MyEnv,
+        task_provider=MY_TASK_PROVIDER,
+        verifier=MY_VERIFIER,
+    ))
 ```
 
----
+推荐由 Env 包通过 entry point 自动暴露注册函数：
 
-## 🔌 Pluggable sandboxes
+```toml
+[project.entry-points."dataflow_mm_agent.environments"]
+my_env = "my_env_package:register"
+```
 
-A sandbox is any `SandboxClientABC` subclass. Adding one = implement `list_tools` + `execute`; the six operators stay untouched.
+安装 Env 包后，首次按 `env_id` 查询时会自动发现插件：
 
-| Backend | Module | Use case |
-|---|---|---|
-| `CodingSandboxClient` | `sandbox/coding_client.py` | **Real coding agent** — isolated workspace with `read_file` / `write_file` / `run_python` / `run_tests` (pytest) / `run_shell`. Fix bugs, implement functions, run tests. |
-| `HTTPSandboxClient` | `sandbox/http_client.py` | Drives a remote sandbox server **over HTTP only** (plain `requests`) — imports nothing from any sandbox SDK. Works with any server speaking the generic `{code,message,data,meta}` protocol (web / rag / text2sql / doc / ds domains). |
-| `MockSandboxClient` | `sandbox/mock_client.py` | Offline, network-free. For tests / dev. |
-| *your own* | add a subclass | Wrap any API / MCP server / tool as `ToolResult`. |
+```python
+from dataflow_mm_agent.env import get_environment_bundle, load_scenario
 
-### Scope
+bundle = get_environment_bundle("my_env")
+scenario = load_scenario("my_env", "task0001")
+```
 
-A **text / structured-domain** explorer (web · rag · sql · doc · ds · coding · shell). Observations are fed back as text, so image/binary observations (GUI/VM `screenshot`) are **out of scope** — that's the multimodal explorer on the roadmap. The transport layer itself is domain-agnostic.
+源码开发阶段也可以显式加载模块：
 
----
+```python
+from dataflow_mm_agent.env import load_environment_plugins
 
-## 📚 Documentation
+load_environment_plugins(modules=("my_env_package",))
+```
 
-| Doc | Contents |
-|---|---|
-| [`docs/DESIGN_zh.md`](docs/DESIGN_zh.md) | 设计理念 — 为什么这么设计、五段流水线、可插拔沙箱 |
-| [`docs/CAPABILITIES_zh.md`](docs/CAPABILITIES_zh.md) | 能力清单 — 支持哪些环境、能生成哪些数据、成熟度 |
-| [`examples/agentic_explore/`](examples/agentic_explore/) | Runnable examples — mock pipeline, coding agent, filter demo, real-API e2e |
+或设置逗号分隔的 `DATAFLOW_MM_AGENT_ENV_PLUGINS` 环境变量。
 
----
+## Rollout 与工具策略
 
-## 🗺️ Roadmap
+`finish` 是 runtime 固有工具，始终存在并校验非空 `answer`。两个 exploration
+generator 默认不提供 workspace host tools，初始化算子时可以显式启用：
 
-- [x] Generator → Evaluator → Filter → **Refiner** loop (repair, not just drop)
-- [x] **TrajectorySelector** — top-N diverse selection algorithm
-- [x] **CodingSandboxClient** — real workspace + pytest
-- [ ] **Multimodal explorer** for GUI/VM (image observations)
-- [ ] **Preference-pair export** (best vs. worst sibling paths → DPO data)
+```python
+from dataflow_mm_agent import (
+    AgentMMExploreGenerator,
+    AgentMMExploreTreeGenerator,
+)
 
----
+linear = AgentMMExploreGenerator(
+    serving=serving,
+    include_host_tools=False,
+)
 
-<div align="center">
-<sub>Part of the <a href="https://github.com/OpenDCAI/DataFlow">OpenDCAI / DataFlow</a> ecosystem.</sub>
-</div>
+tree = AgentMMExploreTreeGenerator(
+    serving=serving,
+    include_host_tools=True,
+)
+```
+
+启用后会增加 `host.list` 和 `host.open`，并将访问限制在单次 episode 的临时
+workspace 内。环境自身的可调用工具始终来自 `Env.tools()`。
+
+## 轨迹与验证
+
+`Trajectory` 使用 message index 关联每个 Agent step 和 observation。图片以内联
+base64 形式保存在 canonical message 与 JSONL 中，不持久化本地绝对路径。
+
+`TrajectoryStore` 支持单条和批量 JSONL：
+
+```python
+from dataflow_mm_agent import TrajectoryStore
+
+store = TrajectoryStore()
+store.save(trajectory, "trajectory.jsonl")
+restored = store.load("trajectory.jsonl")
+```
+
+`AgentMMTrajectoryVerifier` 会在 fresh Env 中按顺序重放轨迹工具调用，再把最终
+snapshot 交给该 Env 自己的 verifier。VLM Judge 与确定性 verifier 是相互独立的
+两个阶段。
+
+`AgentMMTrajectoryQualityEvaluator` 会把每一步 observation 图片作为独立的
+`ImageContent` 交给 VLM Judge；OpenAI-compatible serving 会将其投影为
+`image_url` block。`AgentMMTrajectoryRefiner` 同样使用真正的多模态上下文：文字
+摘要只保留工具调用和文本 observation，旧图片单独附加，默认选择最近 4 张，可用
+`max_prior_images` 调整。JSONL 和 HTTP data URL 中看到 base64 是图片的存储/传输
+编码，不代表图片被拼进普通文本提示词。
+
+## 源码结构
+
+```text
+├── dataflow_mm_agent/
+│   ├── contracts/             # 消息、工具、环境、任务和轨迹契约
+│   ├── env/                   # Env bundle 注册和插件发现
+│   ├── operators/             # DataFlow Agent-MM 算子及其共享 utils
+│   ├── runtime_components/    # finish、host tools 和 rollout runtime
+│   ├── serving/               # serving 接口与 provider adapters
+│   └── storage/               # task/trajectory persistence
+└── examples/
+    └── pixel_games_baseline/  # 可运行的 Env + verifier + task + pipeline + HTML 报告
+```
+
+## 本地开发与构建
+
+开发模式安装：
+
+```bash
+git clone https://github.com/YOUR_ORG/dataflow-mm-agent.git
+cd dataflow-mm-agent
+python -m pip install -e .
+```
+
+构建标准 sdist 和 wheel：
+
+```bash
+python -m pip install build
+python -m build
+```
+
+GitHub 仓库应保留 `pyproject.toml`、`README.md`、`LICENSE`、`MANIFEST.in`、完整的
+`dataflow_mm_agent/` 和 `examples/`。不要提交 `dist/`、`build/`、`*.egg-info/`、
+`__pycache__/`、API key、运行轨迹或本地缓存。
+
+## License
+
+Apache License 2.0，详见 `LICENSE`。

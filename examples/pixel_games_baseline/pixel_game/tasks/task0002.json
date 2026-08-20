@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "task_id": "task0002",
+  "env_id": "pixel_game",
+  "seed": 13,
+  "task_name": "reach_goal",
+  "task_version": 1,
+  "instruction": "完成画面中的网格任务：将 BOT 从 START 移动到 GOAL，宝石可以选择性收集。可以使用 observe 查看画面、使用 play 移动；只有在实际画面确认 BOT 已到达 GOAL 后才能调用 finish。请使用中文进行简要推理并给出最终回答；工具名、方向枚举和 JSON 键保持英文。",
+  "public_config": {"controls": ["up", "down", "left", "right"]},
+  "init_config": {"columns": 8, "rows": 5, "start": [0, 2], "goal": [7, 2], "items": [[2, 2], [5, 2], [6, 2]], "obstacles": [[2, 1], [6, 4], [1, 4], [5, 0], [5, 4], [1, 1]], "mission": "ORBIT-2160"},
+  "task_data": {},
+  "episode_config": {"max_steps": 4},
+  "verifier": {"kind": "state_predicate", "aggregation": "all", "checks": [{"check_id": "at_goal", "description": "The BOT ends at the task's goal position.", "predicate": {"path": ["player"], "op": "equals", "value": [7, 2]}}]},
+  "judge_ref": {"rubric_version": 1, "rubric_authority": "vlm_trajectory_judge", "task_name": "reach_goal", "task_version": 1, "task_specific_evidence": ["the BOT must visibly end at GOAL", "gems are optional"], "common_failure_modes": ["trusting a final-answer claim", "claiming GOAL without visual evidence", "repeating blocked moves"]},
+  "provenance": {"kind": "reviewed_materialized_task", "source": "example"}
+}

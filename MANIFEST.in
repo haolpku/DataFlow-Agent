@@ -1,0 +1,5 @@
+include LICENSE
+include README.md
+graft examples
+global-exclude *.py[cod]
+global-exclude __pycache__/

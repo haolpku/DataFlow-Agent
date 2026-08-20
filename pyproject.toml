@@ -1,30 +1,29 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dataflow-agent"
+name = "dataflow-mm-agent"
 version = "0.1.0"
-description = "Agentic exploration & trajectory-quality operators for DataFlow (open-dataflow)."
+description = "Multimodal agent runtime contracts and trajectory operators for DataFlow-MM."
 readme = "README.md"
-requires-python = ">=3.9"
-authors = [{ name = "Hao Liang", email = "hao.liang@stu.pku.edu.cn" }]
+requires-python = ">=3.10, <4"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    {name = "DataFlow-MM-Agent contributors"},
+]
 dependencies = [
-    "open-dataflow",   # provides OperatorABC / LLMServingABC / OPERATOR_REGISTRY / storage
-    "requests",        # HTTPSandboxClient transport
+    "open-dataflow-mm",
     "pandas",
+    "Pillow",
+    "jsonschema",
+    "openai",
 ]
 
 [project.optional-dependencies]
 test = ["pytest"]
 
-[tool.setuptools]
-packages = [
-    "dataflow_agent",
-    "dataflow_agent.generate",
-    "dataflow_agent.eval",
-    "dataflow_agent.filter",
-    "dataflow_agent.refine",
-    "dataflow_agent.select",
-    "dataflow_agent.sandbox",
-]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["dataflow_mm_agent", "dataflow_mm_agent.*"]

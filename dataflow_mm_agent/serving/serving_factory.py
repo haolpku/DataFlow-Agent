@@ -6,7 +6,7 @@ import os
 from typing import Mapping
 
 from .base_serving import ModelServing
-from .gemini_serving import GeminiKigressServing
+from .gemini_serving import DEFAULT_GEMINI_BASE_URL, GeminiServing
 from .openai_serving import OpenAICompatibleServing
 
 
@@ -16,10 +16,6 @@ def create_model_serving(
     model: str,
     base_url: str | None,
     api_key: str = "EMPTY",
-    kigress_api_key: str | None = None,
-    kigress_user_key: str | None = None,
-    kigress_llm_model: str | None = None,
-    kigress_biz_scene: str = "offline",
     timeout: float = 1800,
     max_tokens: int | None = None,
     temperature: float | None = None,
@@ -38,16 +34,13 @@ def create_model_serving(
             max_workers=max_workers,
             max_images_per_request=max_images_per_request,
         )
-    if normalized in {"gemini", "kigress", "gemini_kigress"}:
-        if base_url is None:
-            raise ValueError("Gemini/Kigress serving requires API_URL")
-        return GeminiKigressServing(
+    if normalized == "gemini":
+        if not api_key.strip() or api_key == "EMPTY":
+            raise ValueError("Gemini serving requires GEMINI_API_KEY or GOOGLE_API_KEY")
+        return GeminiServing(
             model=model,
-            base_url=base_url,
-            api_key=kigress_api_key or "",
-            user_key=kigress_user_key or "",
-            llm_model=kigress_llm_model,
-            biz_scene=kigress_biz_scene,
+            base_url=base_url or DEFAULT_GEMINI_BASE_URL,
+            api_key=api_key,
             timeout=timeout,
             max_tokens=max_tokens,
             temperature=temperature,
@@ -70,15 +63,20 @@ def create_model_serving_from_env(
     model = values.get("MODEL", "").strip()
     if not model:
         raise ValueError("MODEL is required")
+    backend = values.get("SERVING_BACKEND", "openai")
+    normalized = backend.strip().lower().replace("-", "_")
+    api_key = (
+        values.get("GOOGLE_API_KEY")
+        or values.get("GEMINI_API_KEY")
+        or ""
+        if normalized == "gemini"
+        else values.get("DF_API_KEY", "EMPTY")
+    )
     return create_model_serving(
-        backend=values.get("SERVING_BACKEND", "openai"),
+        backend=backend,
         model=model,
         base_url=values.get("API_URL") or None,
-        api_key=values.get("DF_API_KEY", "EMPTY"),
-        kigress_api_key=values.get("KIGRESS_API_KEY"),
-        kigress_user_key=values.get("KIGRESS_USER_KEY"),
-        kigress_llm_model=values.get("KIGRESS_LLM_MODEL") or None,
-        kigress_biz_scene=values.get("KIGRESS_BIZ_SCENE", "offline"),
+        api_key=api_key,
         timeout=timeout,
         max_tokens=max_tokens,
         temperature=temperature,

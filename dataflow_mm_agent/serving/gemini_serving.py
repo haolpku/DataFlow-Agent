@@ -1,8 +1,10 @@
-"""Gemini ``generateContent`` serving for a Kigress gateway."""
+"""Google Gemini ``generateContent`` REST serving."""
 
 from __future__ import annotations
 
 import json
+import re
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Mapping, Sequence
 from urllib.error import HTTPError, URLError
@@ -17,20 +19,18 @@ GeminiTransport = Callable[
     [str, Mapping[str, str], Mapping[str, Any], float],
     Mapping[str, Any],
 ]
+DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
 
-class GeminiKigressServing(ModelServing):
-    """Call a Gemini REST endpoint carrying Kigress routing headers."""
+class GeminiServing(ModelServing):
+    """Call the official Gemini REST shape with canonical multimodal messages."""
 
     def __init__(
         self,
         *,
         model: str,
-        base_url: str,
+        base_url: str = DEFAULT_GEMINI_BASE_URL,
         api_key: str,
-        user_key: str,
-        llm_model: str | None = None,
-        biz_scene: str = "offline",
         timeout: float = 1800,
         max_tokens: int | None = None,
         temperature: float | None = None,
@@ -44,11 +44,7 @@ class GeminiKigressServing(ModelServing):
         if not base_url.strip():
             raise ValueError("Gemini base_url must be non-empty")
         if not api_key.strip():
-            raise ValueError("Kigress x-api-key must be non-empty")
-        if not user_key.strip():
-            raise ValueError("Kigress x-ks-user-key must be non-empty")
-        if biz_scene not in {"offline", "online"}:
-            raise ValueError("Kigress biz_scene must be 'offline' or 'online'")
+            raise ValueError("Gemini API key must be non-empty")
         if max_workers < 1:
             raise ValueError("max_workers must be positive")
         if max_images_per_request is not None and max_images_per_request < 1:
@@ -57,9 +53,6 @@ class GeminiKigressServing(ModelServing):
         self.model = model
         self.base_url = base_url
         self.api_key = api_key
-        self.user_key = user_key
-        self.llm_model = llm_model or model
-        self.biz_scene = biz_scene
         self.timeout = timeout
         self.max_tokens = max_tokens
         self.temperature = temperature
@@ -73,15 +66,15 @@ class GeminiKigressServing(ModelServing):
         """Accept a route root, a model URL, or a URL containing a placeholder."""
         encoded_model = quote(model, safe="._-")
         endpoint = base_url.strip().rstrip("/")
-        placeholders = ("{model}", "{model_id}", "{模型id}", "{模型ID}")
+        placeholders = ("{model}", "{model_id}")
         for placeholder in placeholders:
             if placeholder in endpoint:
                 return endpoint.replace(placeholder, encoded_model)
         if endpoint.endswith(":generateContent"):
             return endpoint
-        if endpoint.endswith("/v1beta/models"):
+        if endpoint.endswith("/models"):
             return f"{endpoint}/{encoded_model}:generateContent"
-        if endpoint.endswith("/v1beta"):
+        if re.search(r"/v\d+(?:alpha|beta)?$", endpoint):
             return f"{endpoint}/models/{encoded_model}:generateContent"
         return f"{endpoint}/v1beta/models/{encoded_model}:generateContent"
 
@@ -89,10 +82,7 @@ class GeminiKigressServing(ModelServing):
     def headers(self) -> dict[str, str]:
         return {
             "Content-Type": "application/json",
-            "x-api-key": self.api_key,
-            "x-ks-user-key": self.user_key,
-            "x-ks-llm-model": self.llm_model,
-            "x-ks-biz-scene": self.biz_scene,
+            "x-goog-api-key": self.api_key,
         }
 
     @classmethod
@@ -104,33 +94,57 @@ class GeminiKigressServing(ModelServing):
     ) -> dict[str, Any]:
         if max_images_per_request is not None and max_images_per_request < 1:
             raise ValueError("max_images_per_request must be positive or None")
-        image_count = sum(
-            isinstance(item, ImageContent)
-            for message in messages
-            for item in message.content
-        )
-        omit_images = (
-            max(0, image_count - max_images_per_request)
-            if max_images_per_request is not None
-            else 0
-        )
+        image_positions = [
+            (message_index, content_index, message.role)
+            for message_index, message in enumerate(messages)
+            for content_index, item in enumerate(message.content)
+            if isinstance(item, ImageContent)
+        ]
+        kept_images = {
+            (message_index, content_index)
+            for message_index, content_index, _role in image_positions
+        }
+        if (
+            max_images_per_request is not None
+            and len(image_positions) > max_images_per_request
+        ):
+            # Task-authored reference images arrive in ordinary user messages;
+            # tool screenshots arrive in observation messages.  Keep the task
+            # input stable across the whole rollout and spend the remaining
+            # budget on the newest visual observations.  Dropping the oldest
+            # images globally would make an image-to-artifact task forget its
+            # references precisely when iterative editing becomes useful.
+            task_images = [
+                position for position in image_positions if position[2] != "observation"
+            ]
+            observation_images = [
+                position for position in image_positions if position[2] == "observation"
+            ]
+            if len(task_images) >= max_images_per_request:
+                selected = task_images[:max_images_per_request]
+            else:
+                remaining = max_images_per_request - len(task_images)
+                selected = task_images + observation_images[-remaining:]
+            kept_images = {
+                (message_index, content_index)
+                for message_index, content_index, _role in selected
+            }
 
         system_parts: list[dict[str, Any]] = []
         contents: list[dict[str, Any]] = []
-        for message in messages:
+        for message_index, message in enumerate(messages):
             parts: list[dict[str, Any]] = []
             if message.role == "observation":
                 parts.append({
                     "text": f"[tool {message.name or 'environment'} observation]",
                 })
             omitted_here = 0
-            for item in message.content:
+            for content_index, item in enumerate(message.content):
                 if isinstance(item, TextContent):
                     if item.text:
                         parts.append({"text": item.text})
                     continue
-                if omit_images:
-                    omit_images -= 1
+                if (message_index, content_index) not in kept_images:
                     omitted_here += 1
                     continue
                 parts.append({
@@ -200,25 +214,122 @@ class GeminiKigressServing(ModelServing):
             headers=dict(headers),
             method="POST",
         )
-        try:
-            with urlopen(request, timeout=timeout) as response:
-                raw = response.read().decode("utf-8")
-        except HTTPError as exc:
-            detail = exc.read(4096).decode("utf-8", errors="replace")
-            raise RuntimeError(
-                f"Gemini gateway returned HTTP {exc.code}: {detail}"
-            ) from exc
-        except URLError as exc:
-            raise RuntimeError(f"Gemini gateway request failed: {exc.reason}") from exc
+        raw = ""
+        for attempt in range(3):
+            try:
+                with urlopen(request, timeout=timeout) as response:
+                    raw = response.read().decode("utf-8")
+                break
+            except HTTPError as exc:
+                detail = exc.read(4096).decode("utf-8", errors="replace")
+                if exc.code in {429, 502, 503, 504} and attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise RuntimeError(
+                    f"Gemini API returned HTTP {exc.code}: {detail}"
+                ) from exc
+            except TimeoutError as exc:
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise RuntimeError("Gemini API request timed out") from exc
+            except URLError as exc:
+                raise RuntimeError(f"Gemini API request failed: {exc.reason}") from exc
         try:
             value = json.loads(raw)
         except json.JSONDecodeError as exc:
-            raise RuntimeError("Gemini gateway returned invalid JSON") from exc
+            raise RuntimeError("Gemini API returned invalid JSON") from exc
         if not isinstance(value, Mapping):
-            raise RuntimeError("Gemini gateway response must be a JSON object")
+            raise RuntimeError("Gemini API response must be a JSON object")
         return value
 
-    def _generate_one(self, messages: Sequence[Message]) -> str:
+    @staticmethod
+    def _gemini_schema(schema: Mapping[str, Any]) -> dict[str, Any]:
+        """Project an action JSON Schema onto Gemini's supported subset.
+
+        AgentRollout offers an exact ``oneOf`` branch per tool.  Sending that
+        full union to Gemini is both unnecessarily large and prone to provider
+        schema-complexity limits.  Gemini still receives the exact tool catalog
+        in the prompt, while this compact schema guarantees one JSON action and
+        constrains the selected tool name.  ToolLoop remains authoritative for
+        per-tool argument validation.
+        """
+
+        detached = json.loads(json.dumps(dict(schema), ensure_ascii=False))
+        branches = detached.get("oneOf")
+        if detached.get("type") == "object" and isinstance(branches, list):
+            tool_names: list[str] = []
+            for branch in branches:
+                if not isinstance(branch, Mapping):
+                    break
+                properties = branch.get("properties")
+                tool = properties.get("tool") if isinstance(properties, Mapping) else None
+                name = tool.get("const") if isinstance(tool, Mapping) else None
+                if not isinstance(name, str):
+                    break
+                tool_names.append(name)
+            else:
+                if tool_names:
+                    return {
+                        "type": "object",
+                        "properties": {
+                            "thought": {"type": "string"},
+                            "tool": {"type": "string", "enum": tool_names},
+                            "args": {"type": "object"},
+                        },
+                        "required": ["thought", "tool", "args"],
+                    }
+
+        def normalize(value: Any) -> Any:
+            if isinstance(value, list):
+                return [normalize(item) for item in value]
+            if not isinstance(value, Mapping):
+                return value
+            result: dict[str, Any] = {}
+            for key, item in value.items():
+                if key == "oneOf":
+                    result["anyOf"] = normalize(item)
+                elif key == "const":
+                    result["enum"] = [normalize(item)]
+                else:
+                    result[str(key)] = normalize(item)
+            return result
+
+        return normalize(detached)
+
+    @classmethod
+    def _structured_generation_config(
+        cls,
+        request_options: Mapping[str, Any] | None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Translate the runtime's OpenAI-shaped JSON schema to Gemini REST."""
+
+        remaining = dict(request_options or {})
+        response_format = remaining.pop("response_format", None)
+        if response_format is None:
+            return {}, remaining
+        if not isinstance(response_format, Mapping):
+            raise TypeError("response_format must be an object")
+        if response_format.get("type") != "json_schema":
+            raise ValueError("Gemini only supports json_schema response_format")
+        descriptor = response_format.get("json_schema")
+        schema = descriptor.get("schema") if isinstance(descriptor, Mapping) else None
+        if not isinstance(schema, Mapping):
+            raise TypeError("response_format.json_schema.schema must be an object")
+        return {
+            "responseFormat": {
+                "text": {
+                    "mimeType": "application/json",
+                    "schema": cls._gemini_schema(schema),
+                },
+            },
+        }, remaining
+
+    def _generate_one(
+        self,
+        messages: Sequence[Message],
+        request_options: Mapping[str, Any] | None = None,
+    ) -> str:
         payload = self.provider_request(
             messages,
             max_images_per_request=self.max_images_per_request,
@@ -228,9 +339,23 @@ class GeminiKigressServing(ModelServing):
             generation_config["maxOutputTokens"] = self.max_tokens
         if self.temperature is not None:
             generation_config["temperature"] = self.temperature
+        base_options = dict(self.request_options)
+        base_generation = base_options.pop("generationConfig", None)
+        if base_generation is not None:
+            if not isinstance(base_generation, Mapping):
+                raise TypeError("request_options.generationConfig must be an object")
+            generation_config.update(base_generation)
+        structured, per_request = self._structured_generation_config(request_options)
+        per_generation = per_request.pop("generationConfig", None)
+        if per_generation is not None:
+            if not isinstance(per_generation, Mapping):
+                raise TypeError("per-request generationConfig must be an object")
+            generation_config.update(per_generation)
+        generation_config.update(structured)
+        payload.update(base_options)
+        payload.update(per_request)
         if generation_config:
             payload["generationConfig"] = generation_config
-        payload.update(self.request_options)
         response = self.transport(
             self.endpoint(self.base_url, self.model),
             self.headers,
@@ -243,17 +368,36 @@ class GeminiKigressServing(ModelServing):
         self,
         conversations: Sequence[Sequence[Message]],
     ) -> list[str]:
+        return self.generate_messages_with_options(
+            conversations,
+            [None] * len(conversations),
+        )
+
+    def generate_messages_with_options(
+        self,
+        conversations: Sequence[Sequence[Message]],
+        request_options: Sequence[Mapping[str, Any] | None],
+    ) -> list[str]:
+        if len(conversations) != len(request_options):
+            raise ValueError(
+                "conversations and request_options must have equal length"
+            )
         if self.max_workers == 1 or len(conversations) <= 1:
-            return [self._generate_one(messages) for messages in conversations]
+            return [
+                self._generate_one(messages, options)
+                for messages, options in zip(conversations, request_options)
+            ]
         results = [""] * len(conversations)
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {
-                executor.submit(self._generate_one, messages): index
-                for index, messages in enumerate(conversations)
+                executor.submit(self._generate_one, messages, options): index
+                for index, (messages, options) in enumerate(
+                    zip(conversations, request_options)
+                )
             }
             for future in as_completed(futures):
                 results[futures[future]] = future.result()
         return results
 
 
-__all__ = ["GeminiKigressServing", "GeminiTransport"]
+__all__ = ["DEFAULT_GEMINI_BASE_URL", "GeminiServing", "GeminiTransport"]

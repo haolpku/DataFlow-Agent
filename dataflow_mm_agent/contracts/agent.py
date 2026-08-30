@@ -34,6 +34,10 @@ _IMAGE_SIGNATURES = {
 class TextContent:
     text: str
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.text, str):
+            raise TypeError("text content must be a string")
+
     def to_dict(self) -> dict[str, Any]:
         return {"type": "text", "text": self.text}
 
@@ -47,6 +51,10 @@ class ImageContent:
     detail: str = "auto"
 
     def __post_init__(self) -> None:
+        if not isinstance(self.media_type, str) or not isinstance(self.data, str):
+            raise TypeError("image media_type and data must be strings")
+        if not isinstance(self.detail, str):
+            raise TypeError("image detail must be a string")
         if self.media_type not in _IMAGE_SIGNATURES:
             raise ValueError(f"unsupported image media type: {self.media_type}")
         if self.detail not in {"auto", "high", "low", "original"}:
@@ -92,14 +100,23 @@ Content = Union[TextContent, ImageContent]
 
 
 def content_from_dict(value: Mapping[str, Any]) -> Content:
+    if not isinstance(value, Mapping):
+        raise TypeError("content must be an object")
     kind = value.get("type")
     if kind == "text":
-        return TextContent(str(value.get("text") or ""))
+        if set(value) != {"type", "text"} or not isinstance(value.get("text"), str):
+            raise ValueError("text content must contain exactly type and string text")
+        return TextContent(value["text"])
     if kind == "image":
+        extra = set(value).difference({"type", "media_type", "data", "detail"})
+        if extra or not isinstance(value.get("media_type"), str) or not isinstance(
+            value.get("data"), str
+        ):
+            raise ValueError("image content has invalid fields")
         return ImageContent(
-            media_type=str(value["media_type"]),
-            data=str(value["data"]),
-            detail=str(value.get("detail") or "auto"),
+            media_type=value["media_type"],
+            data=value["data"],
+            detail=value.get("detail") or "auto",
         )
     raise ValueError(f"unsupported content type: {kind!r}")
 
@@ -113,6 +130,12 @@ class Message:
     def __post_init__(self) -> None:
         if self.role not in {"system", "user", "assistant", "observation"}:
             raise ValueError(f"unsupported message role: {self.role}")
+        content = tuple(self.content)
+        if any(not isinstance(item, (TextContent, ImageContent)) for item in content):
+            raise TypeError("message content must contain canonical content values")
+        if self.name is not None and not isinstance(self.name, str):
+            raise TypeError("message name must be a string or null")
+        object.__setattr__(self, "content", content)
 
     @classmethod
     def of(
@@ -145,10 +168,21 @@ class Message:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "Message":
+        if not isinstance(value, Mapping):
+            raise TypeError("message must be an object")
+        extra = set(value).difference({"role", "content", "name"})
+        if extra:
+            raise ValueError(f"unsupported message fields: {sorted(extra)}")
+        if not isinstance(value.get("role"), str):
+            raise TypeError("message role must be a string")
+        if not isinstance(value.get("content"), list):
+            raise TypeError("message content must be a list")
+        if value.get("name") is not None and not isinstance(value.get("name"), str):
+            raise TypeError("message name must be a string or null")
         return cls.of(
-            role=str(value["role"]),
-            content=(content_from_dict(item) for item in value.get("content") or []),
-            name=(str(value["name"]) if value.get("name") is not None else None),
+            role=value["role"],
+            content=(content_from_dict(item) for item in value["content"]),
+            name=value.get("name"),
         )
 
 
@@ -156,19 +190,23 @@ class Message:
 class ToolSpec:
     name: str
     description: str
-    operation_type: Literal["query", "mutation"]
+    operation_type: Literal["query", "mutation", "unknown"] = "unknown"
     input_schema: Mapping[str, Any] = field(
         default_factory=lambda: {"type": "object", "properties": {}}
     )
 
     def __post_init__(self) -> None:
-        if not self.name or any(character.isspace() for character in self.name):
+        if not isinstance(self.name, str) or not self.name or any(
+            character.isspace() for character in self.name
+        ):
             raise ValueError("tool name must be non-empty and contain no whitespace")
         if not isinstance(self.description, str) or not self.description.strip():
             raise ValueError("tool description must be non-empty")
-        if self.operation_type not in {"query", "mutation"}:
-            raise ValueError("tool operation_type must be 'query' or 'mutation'")
-        if self.input_schema.get("type") != "object":
+        if self.operation_type not in {"query", "mutation", "unknown"}:
+            raise ValueError(
+                "tool operation_type must be 'query', 'mutation', or 'unknown'"
+            )
+        if not isinstance(self.input_schema, Mapping) or self.input_schema.get("type") != "object":
             raise ValueError("tool input_schema must describe a JSON object")
         try:
             jsonschema.Draft202012Validator.check_schema(dict(self.input_schema))
@@ -190,6 +228,14 @@ class ToolError:
     message: str
     retryable: bool = False
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.code, str) or not self.code:
+            raise ValueError("tool error code must be non-empty")
+        if not isinstance(self.message, str):
+            raise TypeError("tool error message must be a string")
+        if not isinstance(self.retryable, bool):
+            raise TypeError("tool error retryable must be a boolean")
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "code": self.code,
@@ -199,10 +245,14 @@ class ToolError:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "ToolError":
+        if not isinstance(value.get("code"), str) or not isinstance(
+            value.get("message"), str
+        ) or not isinstance(value.get("retryable"), bool):
+            raise TypeError("ToolError fields have invalid types")
         return cls(
-            code=str(value["code"]),
-            message=str(value["message"]),
-            retryable=bool(value.get("retryable", False)),
+            code=value["code"],
+            message=value["message"],
+            retryable=value["retryable"],
         )
 
 
@@ -215,10 +265,18 @@ class ToolResult:
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        if not isinstance(self.ok, bool) or not isinstance(self.is_final, bool):
+            raise TypeError("ToolResult ok/is_final must be booleans")
+        content = tuple(self.content)
+        if any(not isinstance(item, (TextContent, ImageContent)) for item in content):
+            raise TypeError("ToolResult content must be canonical content")
+        if not isinstance(self.metadata, Mapping):
+            raise TypeError("ToolResult metadata must be a mapping")
         if self.ok and self.error is not None:
             raise ValueError("successful ToolResult cannot carry an error")
         if not self.ok and self.error is None:
             raise ValueError("failed ToolResult must carry a ToolError")
+        object.__setattr__(self, "content", content)
 
     @classmethod
     def success(
@@ -263,15 +321,25 @@ class ToolResult:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "ToolResult":
+        required = {"ok", "content", "error", "is_final", "metadata"}
+        missing = required.difference(value)
+        if missing:
+            raise KeyError(f"missing ToolResult fields: {sorted(missing)}")
+        if not isinstance(value["ok"], bool) or not isinstance(value["is_final"], bool):
+            raise TypeError("ToolResult ok/is_final must be booleans")
+        if not isinstance(value["content"], list):
+            raise TypeError("ToolResult content must be a list")
+        if not isinstance(value["metadata"], Mapping):
+            raise TypeError("ToolResult metadata must be an object")
         raw_error = value.get("error")
         return cls(
-            ok=bool(value["ok"]),
+            ok=value["ok"],
             content=tuple(
-                content_from_dict(item) for item in value.get("content") or []
+                content_from_dict(item) for item in value["content"]
             ),
             error=ToolError.from_dict(raw_error) if raw_error else None,
-            is_final=bool(value.get("is_final", False)),
-            metadata=dict(value.get("metadata") or {}),
+            is_final=value["is_final"],
+            metadata=dict(value["metadata"]),
         )
 
 
@@ -280,6 +348,12 @@ class ContentLimits:
     max_text_chars: int = 64_000
     max_image_bytes: int = 32 * 1024 * 1024
     max_image_pixels: int = 40_000_000
+
+    def __post_init__(self) -> None:
+        for name in ("max_text_chars", "max_image_bytes", "max_image_pixels"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                raise ValueError(f"{name} must be a positive integer")
 
 
 def validate_content(

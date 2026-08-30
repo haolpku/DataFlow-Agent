@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from dataflow import get_logger
@@ -12,8 +13,7 @@ from dataflow.core import OperatorABC
 from dataflow.utils.registry import OPERATOR_REGISTRY
 from dataflow.utils.storage import DataFlowStorage
 
-from ..env.registry import get_environment_bundle, load_scenario, resolve_scenario
-from ..contracts.environment import Scenario
+from ..contracts import Message, Task, TaskResolver
 from ..contracts.trajectory import Trajectory
 from ..runtime_components import AgentRollout, RolloutConfig
 from ..serving import ModelServing
@@ -42,7 +42,8 @@ class AgentMMExploreTreeGenerator(OperatorABC):
         self,
         serving: ModelServing | None = None,
         *,
-        max_depth: int | None = None,
+        task_resolver: TaskResolver,
+        max_depth: int = 64,
         branching_factor: int = 3,
         max_children: int | None = None,
         max_nodes: int = 64,
@@ -54,16 +55,17 @@ class AgentMMExploreTreeGenerator(OperatorABC):
         max_observation_chars: int = 8000,
         validate_tool_names: bool = True,
         include_host_tools: bool = False,
-        verify_paths: bool = True,
+        workspace_root: str | Path | None = None,
+        workspace_retention: str = "ephemeral",
     ):
         if not isinstance(include_host_tools, bool):
             raise TypeError("include_host_tools must be a boolean")
-        if max_depth is not None and (
+        if (
             isinstance(max_depth, bool)
             or not isinstance(max_depth, int)
             or max_depth < 1
         ):
-            raise ValueError("max_depth must be positive or None")
+            raise ValueError("max_depth must be positive")
         for name, value in (
             ("branching_factor", branching_factor),
             ("max_nodes", max_nodes),
@@ -86,6 +88,7 @@ class AgentMMExploreTreeGenerator(OperatorABC):
 
         self.logger = get_logger()
         self.serving = serving
+        self.task_resolver = task_resolver
         self.max_depth = max_depth
         self.branching_factor = branching_factor
         self.max_children = max_children or branching_factor
@@ -98,7 +101,8 @@ class AgentMMExploreTreeGenerator(OperatorABC):
         self.max_observation_chars = max_observation_chars
         self.validate_tool_names = validate_tool_names
         self.include_host_tools = include_host_tools
-        self.verify_paths = verify_paths
+        self.workspace_root = Path(workspace_root) if workspace_root else None
+        self.workspace_retention = workspace_retention
 
     @staticmethod
     def get_desc(lang: str = "zh") -> str:
@@ -162,17 +166,14 @@ class AgentMMExploreTreeGenerator(OperatorABC):
             "children": [],
         }
 
-    def _runner(self, scenario: Scenario) -> AgentRollout:
+    def _runner(self) -> AgentRollout:
         if self.serving is None:
             raise ValueError(
                 "AgentMMExploreTreeGenerator requires a serving instance"
             )
-        bundle = get_environment_bundle(scenario.env_id)
         defaults = RolloutConfig()
         return AgentRollout(
             serving=self.serving,
-            env_factory=bundle.env_factory,
-            verifier=bundle.verifier if self.verify_paths else None,
             config=RolloutConfig(
                 max_steps=self.max_depth,
                 system_prompt=self.system_prompt or defaults.system_prompt,
@@ -180,19 +181,16 @@ class AgentMMExploreTreeGenerator(OperatorABC):
                 include_tool_catalog=self.include_tool_catalog,
                 validate_tool_names=self.validate_tool_names,
                 max_observation_chars=self.max_observation_chars,
+                workspace_root=self.workspace_root,
+                workspace_retention=self.workspace_retention,
             ),
         )
 
-    def _run_scenario(self, scenario: Scenario) -> dict[str, Any]:
-        bundle = get_environment_bundle(scenario.env_id)
-        depth_limit = (
-            self.max_depth
-            or scenario.episode_max_steps
-            or bundle.spec.default_max_steps
-        )
-        runner = self._runner(scenario)
+    def _run_task(self, task: Task) -> dict[str, Any]:
+        depth_limit = self.max_depth
+        runner = self._runner()
         root_trajectory = runner.run_responses(
-            scenario,
+            task,
             (),
             exhaustion_reason="max_steps",
         )
@@ -274,7 +272,7 @@ class AgentMMExploreTreeGenerator(OperatorABC):
                 child_depth = depth + 1
                 child_prefix = responses_prefix + (response,)
                 child_trajectory = runner.run_responses(
-                    scenario,
+                    task,
                     child_prefix,
                     exhaustion_reason="max_steps",
                 )
@@ -311,41 +309,35 @@ class AgentMMExploreTreeGenerator(OperatorABC):
         expand(root, (), root_trajectory, 0)
         path_values = [trajectory.to_dict() for trajectory in leaves]
         return {
-            "schema_version": 1,
-            "scenario": scenario.to_dict(include_private=False),
+            "schema_version": 2,
+            "task": task.to_dict(),
             "tree": root,
             "paths": path_values,
             "num_nodes": counters["nodes"],
             "num_paths": len(leaves),
             "num_success_paths": sum(item.success for item in leaves),
-            "num_verified_paths": sum(item.verified_success for item in leaves),
             "max_depth": depth_limit,
             "branching_factor": self.branching_factor,
             "branch_state_strategy": "fresh_env_prefix_replay",
         }
 
-    @staticmethod
-    def _scenario_from_record(
+    def _task_from_record(
+        self,
         record: Mapping[str, Any],
         *,
         env_key: str,
         task_key: str,
         input_key: str | None,
-        scenario_key: str | None,
-    ) -> Scenario:
-        if scenario_key is not None:
-            raw_scenario = record.get(scenario_key)
-            if not isinstance(raw_scenario, Mapping):
-                raise TypeError(f"{scenario_key!r} must contain a Scenario object")
-            scenario = resolve_scenario(Scenario.from_dict(raw_scenario))
-        else:
-            scenario = load_scenario(
-                str(record[env_key]),
-                str(record[task_key]),
-            )
+    ) -> Task:
+        task = self.task_resolver.resolve(
+            str(record[task_key]), env_id=str(record[env_key])
+        )
         if input_key and record.get(input_key) is not None:
-            scenario = replace(scenario, instruction=str(record[input_key]))
-        return scenario
+            task = replace(
+                task,
+                messages=(Message.text("user", str(record[input_key])),),
+            )
+        return task
 
     def _run_record(
         self,
@@ -354,16 +346,14 @@ class AgentMMExploreTreeGenerator(OperatorABC):
         env_key: str,
         task_key: str,
         input_key: str | None,
-        scenario_key: str | None,
     ) -> dict[str, Any]:
-        scenario = self._scenario_from_record(
+        task = self._task_from_record(
             record,
             env_key=env_key,
             task_key=task_key,
             input_key=input_key,
-            scenario_key=scenario_key,
         )
-        return self._run_scenario(scenario)
+        return self._run_task(task)
 
     def run(
         self,
@@ -372,18 +362,13 @@ class AgentMMExploreTreeGenerator(OperatorABC):
         output_key: str = "tree",
         env_key: str = "env_id",
         task_key: str = "task_id",
-        scenario_key: str | None = None,
     ):
         if self.serving is None:
             raise ValueError(
                 "AgentMMExploreTreeGenerator requires a serving instance"
             )
         dataframe = storage.read(output_type="dataframe")
-        required_keys: Sequence[str] = (
-            (scenario_key,)
-            if scenario_key is not None
-            else (env_key, task_key)
-        )
+        required_keys: Sequence[str] = (env_key, task_key)
         for required in required_keys:
             if required not in dataframe.columns:
                 raise KeyError(f"missing required input column: {required}")
@@ -397,20 +382,18 @@ class AgentMMExploreTreeGenerator(OperatorABC):
                     env_key=env_key,
                     task_key=task_key,
                     input_key=input_key,
-                    scenario_key=scenario_key,
                 )
             except Exception as exc:
                 self.logger.error(
                     f"[AgentMMExploreTreeGenerator] task {index} failed: {exc}"
                 )
                 return {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "tree": None,
                     "paths": [],
                     "num_nodes": 0,
                     "num_paths": 0,
                     "num_success_paths": 0,
-                    "num_verified_paths": 0,
                     "error": f"{type(exc).__name__}: {exc}",
                 }
 
@@ -429,10 +412,9 @@ class AgentMMExploreTreeGenerator(OperatorABC):
         dataframe[output_key] = complete
         storage.write(dataframe)
         total_paths = sum(item["num_paths"] for item in complete)
-        verified_paths = sum(item["num_verified_paths"] for item in complete)
         self.logger.info(
             f"[AgentMMExploreTreeGenerator] built {len(complete)} trees, "
-            f"{total_paths} leaf paths ({verified_paths} verified)"
+            f"{total_paths} leaf paths"
         )
         return [output_key]
 

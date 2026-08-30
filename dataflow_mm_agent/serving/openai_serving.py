@@ -87,40 +87,59 @@ class OpenAICompatibleServing(ModelServing):
     ) -> list[dict[str, Any]]:
         if max_images_per_request is not None and max_images_per_request < 1:
             raise ValueError("max_images_per_request must be positive or None")
-        image_count = sum(
-            isinstance(item, ImageContent)
-            for message in messages
-            for item in message.content
-        )
-        omit_images = max(
-            0,
-            image_count - max_images_per_request,
-        ) if max_images_per_request is not None else 0
+        image_positions = [
+            (message_index, content_index, message.role)
+            for message_index, message in enumerate(messages)
+            for content_index, item in enumerate(message.content)
+            if isinstance(item, ImageContent)
+        ]
+        kept_images = {
+            (message_index, content_index)
+            for message_index, content_index, _role in image_positions
+        }
+        if (
+            max_images_per_request is not None
+            and len(image_positions) > max_images_per_request
+        ):
+            task_images = [
+                position for position in image_positions if position[2] != "observation"
+            ]
+            observation_images = [
+                position for position in image_positions if position[2] == "observation"
+            ]
+            if len(task_images) >= max_images_per_request:
+                selected = task_images[:max_images_per_request]
+            else:
+                remaining = max_images_per_request - len(task_images)
+                selected = task_images + observation_images[-remaining:]
+            kept_images = {
+                (message_index, content_index)
+                for message_index, content_index, _role in selected
+            }
 
         rendered: list[dict[str, Any]] = []
-        for message in messages:
+        for message_index, message in enumerate(messages):
             role = "user" if message.role == "observation" else message.role
-            if not omit_images:
-                content = cls._content(message)
-            else:
-                projected = []
-                omitted_here = 0
-                for item in message.content:
-                    if isinstance(item, ImageContent) and omit_images:
-                        omit_images -= 1
-                        omitted_here += 1
-                        continue
-                    projected.append(item)
-                if omitted_here:
-                    projected.append(TextContent(
-                        f"[{omitted_here} earlier image(s) omitted to respect "
-                        "the serving request limit]"
-                    ))
-                content = cls._content(Message.of(
-                    message.role,
-                    projected,
-                    name=message.name,
+            projected = []
+            omitted_here = 0
+            for content_index, item in enumerate(message.content):
+                if (
+                    isinstance(item, ImageContent)
+                    and (message_index, content_index) not in kept_images
+                ):
+                    omitted_here += 1
+                    continue
+                projected.append(item)
+            if omitted_here:
+                projected.append(TextContent(
+                    f"[{omitted_here} earlier image(s) omitted to respect "
+                    "the serving request limit]"
                 ))
+            content = cls._content(Message.of(
+                message.role,
+                projected,
+                name=message.name,
+            ))
             rendered.append({"role": role, "content": content})
         return rendered
 
@@ -139,7 +158,11 @@ class OpenAICompatibleServing(ModelServing):
             return "".join(chunks)
         return str(content or "")
 
-    def _generate_one(self, messages: Sequence[Message]) -> str:
+    def _generate_one(
+        self,
+        messages: Sequence[Message],
+        request_options: Mapping[str, Any] | None = None,
+    ) -> str:
         options: dict[str, Any] = {
             "model": self.model,
             "messages": self.provider_messages(
@@ -148,6 +171,7 @@ class OpenAICompatibleServing(ModelServing):
             ),
             "timeout": self.timeout,
             **self.request_options,
+            **dict(request_options or {}),
         }
         if self.max_tokens is not None:
             options["max_tokens"] = self.max_tokens
@@ -160,13 +184,32 @@ class OpenAICompatibleServing(ModelServing):
         self,
         conversations: Sequence[Sequence[Message]],
     ) -> list[str]:
+        return self.generate_messages_with_options(
+            conversations,
+            [None] * len(conversations),
+        )
+
+    def generate_messages_with_options(
+        self,
+        conversations: Sequence[Sequence[Message]],
+        request_options: Sequence[Mapping[str, Any] | None],
+    ) -> list[str]:
+        if len(conversations) != len(request_options):
+            raise ValueError(
+                "conversations and request_options must have equal length"
+            )
         if self.max_workers == 1 or len(conversations) <= 1:
-            return [self._generate_one(messages) for messages in conversations]
+            return [
+                self._generate_one(messages, options)
+                for messages, options in zip(conversations, request_options)
+            ]
         results = [""] * len(conversations)
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {
-                executor.submit(self._generate_one, messages): index
-                for index, messages in enumerate(conversations)
+                executor.submit(self._generate_one, messages, options): index
+                for index, (messages, options) in enumerate(
+                    zip(conversations, request_options)
+                )
             }
             for future in as_completed(futures):
                 results[futures[future]] = future.result()

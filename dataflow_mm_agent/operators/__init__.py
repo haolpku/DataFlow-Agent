@@ -6,7 +6,7 @@ from .trajectory_filter import AgentMMTrajectoryFilter
 from .trajectory_quality_evaluator import AgentMMTrajectoryQualityEvaluator
 from .trajectory_refiner import AgentMMTrajectoryRefiner
 from .trajectory_selector import AgentMMTrajectorySelector
-from .trajectory_verifier import AgentMMTrajectoryVerifier
+from .trajectory_verifier import AgentMMReplayVerifier
 
 __all__ = [
     "AgentMMExploreGenerator",
@@ -15,5 +15,5 @@ __all__ = [
     "AgentMMTrajectoryQualityEvaluator",
     "AgentMMTrajectoryRefiner",
     "AgentMMTrajectorySelector",
-    "AgentMMTrajectoryVerifier",
+    "AgentMMReplayVerifier",
 ]

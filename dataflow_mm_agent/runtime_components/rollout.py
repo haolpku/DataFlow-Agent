@@ -1,4 +1,4 @@
-"""Multimodal JSON-action agent loop over controlled Python environments."""
+"""Multimodal JSON-action rollouts over lightweight environments."""
 
 from __future__ import annotations
 
@@ -7,25 +7,28 @@ import tempfile
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Iterator, Literal, Mapping, Sequence
 
 from ..contracts import (
-    Content,
     ContentLimits,
+    EnvironmentSpec,
     ImageContent,
     Message,
-    TextContent,
+    Task,
     ToolResult,
     ToolSpec,
+    close_env,
+    start_env,
     validate_content,
 )
-from ..contracts.environment import Env, Scenario, Verifier
 from ..contracts.trajectory import EpisodeStep, Trajectory, utc_now
-from .finish import FINISH_TOOL_SPEC
-from .host import HostPolicy, HostTools
+from ..env.registry import get_environment_spec, make_env
 from ..serving import ModelServing
+from .host import HostPolicy
+from .tool_loop import ToolLoop
 
 
 _SYSTEM_PROMPT = """You are an autonomous multimodal agent solving a task in a controlled environment.
@@ -44,175 +47,113 @@ When the task is complete, use:
 
 Use only listed tools or finish. Images returned by tools are visible in the
 observation message where they appear. Do not invent paths or inspect hidden
-environment state. Follow the language requested by the task instruction. If
-the task requests Chinese, write the thought and final answer in Chinese while
-keeping tool names, argument keys, and enum values exactly as defined. In
-particular, the finish tool's answer argument must contain Chinese text.
+environment state. Follow the language requested by the task messages.
 """
 
 
-EnvFactory = Callable[[], Env]
+EnvResolver = Callable[[str], Any]
+SpecResolver = Callable[[str], EnvironmentSpec]
 ResponseProvider = Callable[
-    [Sequence[Message]],
+    [Sequence[Message], Mapping[str, Any] | None],
     tuple[str, float] | None,
 ]
+WorkspaceRetention = Literal["ephemeral", "full"]
 
 
 @dataclass(frozen=True)
 class RolloutConfig:
-    max_steps: int | None = None
+    max_steps: int = 64
     system_prompt: str = _SYSTEM_PROMPT
     include_host_tools: bool = True
     include_tool_catalog: bool = True
     validate_tool_names: bool = True
+    structured_actions: bool = False
+    action_format_retries: int = 0
     max_observation_chars: int = 8000
     workspace_root: Path | None = None
+    workspace_retention: WorkspaceRetention = "ephemeral"
     content_limits: ContentLimits = ContentLimits()
 
     def __post_init__(self) -> None:
-        if self.max_steps is not None and (
+        if (
             isinstance(self.max_steps, bool)
             or not isinstance(self.max_steps, int)
             or self.max_steps < 1
         ):
-            raise ValueError("max_steps must be positive")
+            raise ValueError("max_steps must be a positive integer")
         if self.max_observation_chars < 1:
             raise ValueError("max_observation_chars must be positive")
+        if (
+            isinstance(self.action_format_retries, bool)
+            or not isinstance(self.action_format_retries, int)
+            or self.action_format_retries < 0
+        ):
+            raise ValueError("action_format_retries must be a non-negative integer")
+        if self.workspace_retention not in ("ephemeral", "full"):
+            raise ValueError("workspace_retention must be 'ephemeral' or 'full'")
+        if self.workspace_retention == "full" and self.workspace_root is None:
+            raise ValueError(
+                "workspace_root is required when workspace_retention='full'"
+            )
 
 
 class AgentRollout:
+    """Run one required Task; verification is intentionally out of scope."""
+
     def __init__(
         self,
         *,
         serving: ModelServing,
-        env_factory: EnvFactory,
-        verifier: Verifier | None = None,
         config: RolloutConfig = RolloutConfig(),
+        env_resolver: EnvResolver = make_env,
+        spec_resolver: SpecResolver = get_environment_spec,
     ):
         self.serving = serving
-        self.env_factory = env_factory
-        self.verifier = verifier
         self.config = config
+        self.env_resolver = env_resolver
+        self.spec_resolver = spec_resolver
+
+    parse_action = staticmethod(ToolLoop.parse_action)
 
     @staticmethod
-    def parse_action(text: str) -> dict[str, Any] | None:
-        if not text:
-            return None
-        candidates: list[str] = []
-        start: int | None = None
-        depth = 0
-        in_string = False
-        escaped = False
-        for index, character in enumerate(text):
-            if in_string:
-                if escaped:
-                    escaped = False
-                elif character == "\\":
-                    escaped = True
-                elif character == '"':
-                    in_string = False
-                continue
-            if character == '"':
-                in_string = True
-            elif character == "{":
-                if depth == 0:
-                    start = index
-                depth += 1
-            elif character == "}" and depth:
-                depth -= 1
-                if depth == 0 and start is not None:
-                    candidates.append(text[start:index + 1])
-                    start = None
-
-        # Thinking models commonly quote an illustrative or previous action in
-        # their reasoning before emitting the actual action after </think>.
-        # The last syntactically and structurally valid object is therefore the
-        # intended action; earlier examples must not become environment calls.
-        for candidate in reversed(candidates):
-            try:
-                value = json.loads(candidate)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(value, dict):
-                continue
-            tool = value.get("tool")
-            args = value.get("args", {})
-            if not isinstance(tool, str) or not isinstance(args, dict):
-                continue
-            value["args"] = args
-            return value
-        return None
-
-    @staticmethod
-    def _tool_catalog(tools: Sequence[ToolSpec]) -> str:
-        return json.dumps(
-            [tool.to_dict() for tool in tools],
-            ensure_ascii=False,
-            indent=2,
-        )
-
-    @staticmethod
-    def _validate_args(tool: ToolSpec, args: Mapping[str, Any]) -> str | None:
-        try:
-            import jsonschema
-
-            jsonschema.validate(instance=dict(args), schema=dict(tool.input_schema))
-        except ImportError:
-            required = tool.input_schema.get("required") or []
-            missing = [name for name in required if name not in args]
-            return f"missing required arguments: {missing}" if missing else None
-        except Exception as exc:
-            return str(exc).splitlines()[0]
-        return None
-
-    def _safe_result(self, result: ToolResult) -> ToolResult:
-        try:
-            validate_content(result.content, self.config.content_limits)
-            content = []
-            for item in result.content:
-                if (
-                    isinstance(item, TextContent)
-                    and len(item.text) > self.config.max_observation_chars
-                ):
-                    omitted = len(item.text) - self.config.max_observation_chars
-                    content.append(TextContent(
-                        item.text[:self.config.max_observation_chars]
-                        + f"\n...[truncated {omitted} chars of {len(item.text)} total]"
-                    ))
-                else:
-                    content.append(item)
-            return ToolResult(
-                ok=result.ok,
-                content=tuple(content),
-                error=result.error,
-                is_final=result.is_final,
-                metadata=result.metadata,
-            )
-        except ValueError as exc:
-            return ToolResult.failure("invalid_content", str(exc))
-
-    @staticmethod
-    def _observation(result: ToolResult, tool_name: str) -> Message:
-        content = list(result.content)
-        if result.error is not None:
-            content.insert(0, TextContent(
-                f"ERROR [{result.error.code}]: {result.error.message}"
-            ))
-        if not content:
-            content.append(TextContent("OK" if result.ok else "ERROR"))
-        return Message.of("observation", content, name=tool_name)
+    def _action_request_options(tools: Sequence[ToolSpec]) -> dict[str, Any]:
+        branches = [{
+            "type": "object",
+            "properties": {
+                "thought": {"type": "string"},
+                "tool": {"type": "string", "const": tool.name},
+                "args": json.loads(json.dumps(tool.input_schema)),
+            },
+            "required": ["thought", "tool", "args"],
+            "additionalProperties": False,
+        } for tool in tools]
+        return {
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "agent_action",
+                    "strict": True,
+                    "schema": {"type": "object", "oneOf": branches},
+                },
+            },
+        }
 
     def sample_responses(
         self,
         messages: Sequence[Message],
         count: int,
+        *,
+        request_options: Mapping[str, Any] | None = None,
     ) -> list[str]:
-        """Sample several next responses from one canonical message history."""
         if isinstance(count, bool) or not isinstance(count, int) or count < 1:
             raise ValueError("count must be a positive integer")
-        conversation = tuple(messages)
-        responses = self.serving.generate_messages(
-            [conversation for _ in range(count)]
+        conversations = [tuple(messages) for _ in range(count)]
+        responses = (
+            self.serving.generate_messages_with_options(
+                conversations, [request_options for _ in range(count)]
+            )
+            if request_options is not None
+            else self.serving.generate_messages(conversations)
         )
         if len(responses) != count:
             raise RuntimeError(
@@ -220,50 +161,55 @@ class AgentRollout:
             )
         return responses
 
-    def run(
-        self,
-        scenario: Scenario,
-        *,
-        instruction_content: Sequence[Content] | None = None,
-    ) -> Trajectory:
-        """Run one live model-driven episode."""
+    @contextmanager
+    def _episode_workspace(self, *, env_id: str, episode_id: str) -> Iterator[Path]:
+        root = self.config.workspace_root
+        if self.config.workspace_retention == "full":
+            assert root is not None
+            workspace = (Path(root).resolve() / env_id / episode_id).resolve()
+            workspace.mkdir(parents=True, exist_ok=False)
+            yield workspace
+            return
+        if root is not None:
+            Path(root).mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(
+            prefix=f"agent-mm-{env_id}-", dir=str(root) if root else None
+        ) as temporary:
+            yield Path(temporary).resolve()
 
-        def live_response(messages: Sequence[Message]) -> tuple[str, float]:
+    def run(self, task: Task) -> Trajectory:
+        def live_response(
+            messages: Sequence[Message],
+            request_options: Mapping[str, Any] | None,
+        ) -> tuple[str, float]:
             before = time.perf_counter()
-            response = self.sample_responses(messages, 1)[0]
+            response = self.sample_responses(
+                messages, 1, request_options=request_options
+            )[0]
             return response, (time.perf_counter() - before) * 1000
 
         return self._run_with_response_provider(
-            scenario,
+            task,
             live_response,
             exhaustion_reason="max_steps",
-            instruction_content=instruction_content,
+            step_limit=self.config.max_steps,
         )
 
     def run_responses(
         self,
-        scenario: Scenario,
+        task: Task,
         responses: Sequence[str],
         *,
-        exhaustion_reason: str = "max_steps",
+        exhaustion_reason: str = "responses_exhausted",
     ) -> Trajectory:
-        """Replay a fixed response prefix in a fresh Env.
-
-        This uses exactly the same parsing, argument validation, tool routing,
-        observation construction, termination, and optional verifier path as a
-        live rollout. Tree exploration uses it to reconstruct every branch from
-        the task's deterministic reset state instead of mutating one shared Env
-        across sibling nodes.
-        """
         fixed = tuple(responses)
         if any(not isinstance(item, str) for item in fixed):
             raise TypeError("responses must contain only strings")
-        if not isinstance(exhaustion_reason, str) or not exhaustion_reason:
-            raise ValueError("exhaustion_reason must be a non-empty string")
         iterator = iter(fixed)
 
         def fixed_response(
             _messages: Sequence[Message],
+            _request_options: Mapping[str, Any] | None,
         ) -> tuple[str, float] | None:
             try:
                 return next(iterator), 0.0
@@ -271,7 +217,7 @@ class AgentRollout:
                 return None
 
         return self._run_with_response_provider(
-            scenario,
+            task,
             fixed_response,
             exhaustion_reason=exhaustion_reason,
             step_limit=len(fixed),
@@ -279,114 +225,114 @@ class AgentRollout:
 
     def _run_with_response_provider(
         self,
-        scenario: Scenario,
+        task: Task,
         response_provider: ResponseProvider,
         *,
         exhaustion_reason: str,
-        step_limit: int | None = None,
-        instruction_content: Sequence[Content] | None = None,
+        step_limit: int,
     ) -> Trajectory:
-        prepared_instruction = (
-            tuple(instruction_content) if instruction_content is not None else None
-        )
-        if prepared_instruction is not None:
-            if not prepared_instruction:
-                raise ValueError("instruction_content must not be empty")
-            validate_content(prepared_instruction, self.config.content_limits)
+        if not isinstance(task, Task):
+            raise TypeError("AgentRollout.run requires a Task")
+        for message in task.messages:
+            validate_content(message.content, self.config.content_limits)
         started_at = utc_now()
-        episode_id = f"{scenario.task_id}-{uuid.uuid4().hex[:12]}"
-        root = self.config.workspace_root
-        if root is not None:
-            Path(root).mkdir(parents=True, exist_ok=True)
+        episode_id = f"{task.task_id}-{uuid.uuid4().hex[:12]}"
 
-        with tempfile.TemporaryDirectory(
-            prefix=f"agent-mm-{scenario.env_id}-",
-            dir=str(root) if root else None,
-        ) as temporary:
-            workspace = Path(temporary).resolve()
-            env = self.env_factory()
-            env_spec = getattr(env, "spec", None)
-            if (
-                getattr(env, "env_id", None) != scenario.env_id
-                or env_spec is None
-                or env_spec.env_id != scenario.env_id
-            ):
-                env.close()
-                raise ValueError(
-                    "environment factory/spec does not match scenario env_id"
-                )
-            max_steps = (
-                step_limit
-                if step_limit is not None
-                else (
-                    self.config.max_steps
-                    or scenario.episode_max_steps
-                    or env_spec.default_max_steps
-                )
-            )
-            host = HostTools(HostPolicy(
-                workspace=workspace,
-                content_limits=self.config.content_limits,
-            )) if self.config.include_host_tools else None
+        with self._episode_workspace(env_id=task.env_id, episode_id=episode_id) as workspace:
+            env = self.env_resolver(task.env_id)
+            spec = self.spec_resolver(task.env_id)
+            if spec.env_id != task.env_id:
+                close_env(env)
+                raise ValueError("environment description does not match task.env_id")
             messages: list[Message] = []
             steps: list[EpisodeStep] = []
             final_answer: str | None = None
             termination_reason = exhaustion_reason
-            snapshot: Mapping[str, Any] | None = None
+            format_retries_used = 0
+            format_retries_recovered = 0
+            tool_names: tuple[str, ...] = ()
 
             try:
-                env_tools = tuple(env.tools())
-                host_tools = tuple(host.tools()) if host else ()
-                runtime_tools = (FINISH_TOOL_SPEC,)
-                tools = env_tools + host_tools + runtime_tools
-                names = [tool.name for tool in tools]
-                if len(set(names)) != len(names):
-                    raise ValueError(
-                        "environment, host, and runtime tool names must be unique"
-                    )
-                tool_map = {tool.name: tool for tool in tools}
+                host_policy = HostPolicy(
+                    workspace=workspace,
+                    content_limits=self.config.content_limits,
+                ) if self.config.include_host_tools else None
+                loop = ToolLoop(
+                    env,
+                    host_policy=host_policy,
+                    validate_tool_names=self.config.validate_tool_names,
+                    content_limits=self.config.content_limits,
+                    max_observation_chars=self.config.max_observation_chars,
+                )
+                tool_names = loop.tool_names
+                request_options = (
+                    self._action_request_options(loop.tools)
+                    if self.config.structured_actions
+                    else None
+                )
                 catalog = (
-                    self._tool_catalog(tools)
+                    ToolLoop.catalog(loop.tools)
                     if self.config.include_tool_catalog
                     else "(tools are described by the caller)"
                 )
-                environment_context = json.dumps(
-                    env_spec.solver_context(),
-                    ensure_ascii=False,
-                    indent=2,
-                )
-                system_prompt = self.config.system_prompt.format(
-                    tool_catalog=catalog,
-                    environment_context=environment_context,
-                )
-                instruction_message = (
-                    Message.of("user", prepared_instruction)
-                    if prepared_instruction is not None
-                    else Message.text("user", scenario.instruction)
-                )
-                messages.extend([
-                    Message.text("system", system_prompt),
-                    instruction_message,
-                ])
-                initial = self._safe_result(env.reset(scenario, workspace))
-                if initial.content or not initial.ok:
-                    messages.append(self._observation(initial, "env.reset"))
+                messages.append(Message.text(
+                    "system",
+                    self.config.system_prompt.format(
+                        tool_catalog=catalog,
+                        environment_context=json.dumps(
+                            spec.solver_context(), ensure_ascii=False, indent=2
+                        ),
+                    ),
+                ))
+                messages.extend(task.messages)
 
-                for step_index in range(1, max_steps + 1):
-                    generated = response_provider(tuple(messages))
+                initial = start_env(
+                    env,
+                    task.scenario.init if task.scenario is not None else None,
+                    workspace,
+                )
+                if initial is not None:
+                    initial = loop.safe_result(initial)
+                    if initial.content or not initial.ok:
+                        messages.append(loop.observation(initial, "env.start"))
+                    if not initial.ok:
+                        code = initial.error.code if initial.error is not None else "unknown"
+                        raise RuntimeError(f"Env.start failed with {code}")
+                    if initial.is_final:
+                        raise RuntimeError("Env.start must not terminate an episode")
+
+                for step_index in range(1, step_limit + 1):
+                    generated = response_provider(tuple(messages), request_options)
                     if generated is None:
-                        termination_reason = exhaustion_reason
                         break
                     response, elapsed_ms = generated
+                    action = loop.parse_action(response)
+                    retry_context = list(messages)
+                    retries_this_step = 0
+                    while (
+                        action is None
+                        and retries_this_step < self.config.action_format_retries
+                    ):
+                        retries_this_step += 1
+                        format_retries_used += 1
+                        retry_context.extend([
+                            Message.text("assistant", response),
+                            loop.observation(loop.parse_failure(), "agent.parse"),
+                        ])
+                        retried = response_provider(tuple(retry_context), request_options)
+                        if retried is None:
+                            break
+                        response, retry_elapsed = retried
+                        elapsed_ms += retry_elapsed
+                        action = loop.parse_action(response)
+                    if retries_this_step and action is not None:
+                        format_retries_recovered += 1
+
                     messages.append(Message.text("assistant", response))
                     response_index = len(messages) - 1
-                    action = self.parse_action(response)
                     if action is None:
-                        result = ToolResult.failure(
-                            "invalid_action",
-                            "response must contain one JSON action object",
-                        )
-                        messages.append(self._observation(result, "agent.parse"))
+                        result = loop.parse_failure()
+                        messages.append(loop.observation(result, "agent.parse"))
                         steps.append(EpisodeStep(
                             index=step_index,
                             response_message_index=response_index,
@@ -395,90 +341,40 @@ class AgentRollout:
                             parse_error=True,
                             elapsed_ms=elapsed_ms,
                             tool_ok=False,
-                            error_code=result.error.code,
-                            retryable=result.error.retryable,
+                            error_code=result.error.code if result.error else None,
+                            retryable=result.error.retryable if result.error else None,
                         ))
                         continue
 
-                    tool_name = action["tool"]
-                    args = action["args"]
-                    if tool_name == "finish":
-                        validation_error = self._validate_args(FINISH_TOOL_SPEC, args)
-                        if validation_error:
-                            result = self._safe_result(ToolResult.failure(
-                                "invalid_arguments", validation_error
-                            ))
-                            messages.append(self._observation(result, tool_name))
-                            steps.append(EpisodeStep(
-                                index=step_index,
-                                response_message_index=response_index,
-                                action=action,
-                                observation_message_index=len(messages) - 1,
-                                elapsed_ms=elapsed_ms,
-                                tool_ok=False,
-                                error_code=result.error.code,
-                                retryable=result.error.retryable,
-                            ))
-                            continue
-                        final_answer = str(args["answer"])
-                        termination_reason = "finish"
-                        steps.append(EpisodeStep(
-                            index=step_index,
-                            response_message_index=response_index,
-                            action=action,
-                            elapsed_ms=elapsed_ms,
-                            tool_ok=True,
+                    execution = loop.execute(action)
+                    observation_index = None
+                    if execution.emit_observation:
+                        messages.append(loop.observation(
+                            execution.result, str(action.get("tool") or "agent.action")
                         ))
-                        break
-
-                    spec = tool_map.get(tool_name)
-                    if spec is None and self.config.validate_tool_names:
-                        result = ToolResult.failure(
-                            "unknown_tool",
-                            f"unknown tool {tool_name!r}; available: {sorted(tool_map)}",
-                        )
-                    elif spec is None:
-                        try:
-                            result = env.call(tool_name, args)
-                        except Exception as exc:
-                            result = ToolResult.failure(
-                                "environment_error",
-                                f"{type(exc).__name__}: {exc}",
-                                retryable=False,
-                            )
-                    else:
-                        validation_error = self._validate_args(spec, args)
-                        if validation_error:
-                            result = ToolResult.failure(
-                                "invalid_arguments", validation_error
-                            )
-                        else:
-                            try:
-                                result = (
-                                    host.call(tool_name, args)
-                                    if host and tool_name.startswith("host.")
-                                    else env.call(tool_name, args)
-                                )
-                            except Exception as exc:
-                                result = ToolResult.failure(
-                                    "environment_error",
-                                    f"{type(exc).__name__}: {exc}",
-                                    retryable=False,
-                                )
-                    result = self._safe_result(result)
-                    messages.append(self._observation(result, tool_name))
+                        observation_index = len(messages) - 1
                     steps.append(EpisodeStep(
                         index=step_index,
                         response_message_index=response_index,
-                        action=action,
-                        observation_message_index=len(messages) - 1,
+                        action=dict(action),
+                        observation_message_index=observation_index,
                         elapsed_ms=elapsed_ms,
-                        tool_ok=result.ok,
-                        error_code=result.error.code if result.error else None,
-                        retryable=result.error.retryable if result.error else None,
+                        tool_ok=execution.result.ok,
+                        error_code=(
+                            execution.result.error.code
+                            if execution.result.error is not None
+                            else None
+                        ),
+                        retryable=(
+                            execution.result.error.retryable
+                            if execution.result.error is not None
+                            else None
+                        ),
+                        is_final=execution.result.is_final,
                     ))
-                    if result.is_final:
-                        termination_reason = "environment_final"
+                    if execution.terminal_kind is not None:
+                        termination_reason = execution.terminal_kind
+                        final_answer = execution.final_answer
                         break
             except Exception as exc:
                 termination_reason = "infrastructure_error"
@@ -488,19 +384,21 @@ class AgentRollout:
                     name="runtime",
                 ))
             finally:
-                if self.verifier is not None:
-                    try:
-                        snapshot = dict(env.snapshot())
-                        env_spec.validate_snapshot(snapshot)
-                    except Exception as exc:
-                        snapshot = {
-                            "snapshot_error": f"{type(exc).__name__}: {exc}"
-                        }
-                env.close()
+                try:
+                    close_env(env)
+                except Exception as exc:
+                    if termination_reason != "infrastructure_error":
+                        termination_reason = "infrastructure_error"
+                        messages.append(Message.text(
+                            "observation",
+                            f"FATAL [close {type(exc).__name__}]: {exc}",
+                            name="runtime",
+                        ))
 
-            trajectory = Trajectory(
+            return Trajectory(
                 episode_id=episode_id,
-                scenario=scenario,
+                task_id=task.task_id,
+                env_id=task.env_id,
                 messages=tuple(messages),
                 steps=tuple(steps),
                 final_answer=final_answer,
@@ -508,35 +406,42 @@ class AgentRollout:
                 started_at=started_at,
                 completed_at=utc_now(),
                 metadata={
-                    "tools": names if "names" in locals() else [],
-                    "max_steps": max_steps,
-                    "instruction_image_count": sum(
-                        isinstance(item, ImageContent)
-                        for item in (prepared_instruction or ())
+                    "tools": list(tool_names),
+                    "max_steps": step_limit,
+                    "workspace_retention": self.config.workspace_retention,
+                    **(
+                        {"workspace": str(workspace)}
+                        if self.config.workspace_retention == "full"
+                        else {}
                     ),
+                    "task_image_count": sum(
+                        isinstance(item, ImageContent)
+                        for message in task.messages
+                        for item in message.content
+                    ),
+                    "structured_actions": self.config.structured_actions,
+                    "action_format_retries": self.config.action_format_retries,
+                    "format_retries_used": format_retries_used,
+                    "format_retries_recovered": format_retries_recovered,
+                    "host_tools": self.config.include_host_tools,
+                    "validate_tool_names": self.config.validate_tool_names,
                 },
             )
-            if self.verifier is None:
-                return trajectory
-            verification = self.verifier.verify(scenario, trajectory, snapshot or {})
-            return trajectory.with_verification(verification)
 
-    def run_batch(
-        self,
-        scenarios: Sequence[Scenario],
-        *,
-        max_workers: int = 1,
-    ) -> list[Trajectory]:
+    def run_batch(self, tasks: Sequence[Task], *, max_workers: int = 1) -> list[Trajectory]:
         if max_workers < 1:
             raise ValueError("max_workers must be positive")
         if max_workers == 1:
-            return [self.run(scenario) for scenario in scenarios]
-        results: list[Trajectory | None] = [None] * len(scenarios)
+            return [self.run(task) for task in tasks]
+        results: list[Trajectory | None] = [None] * len(tasks)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
-                executor.submit(self.run, scenario): index
-                for index, scenario in enumerate(scenarios)
+                executor.submit(self.run, task): index
+                for index, task in enumerate(tasks)
             }
             for future in as_completed(futures):
                 results[futures[future]] = future.result()
         return [result for result in results if result is not None]
+
+
+__all__ = ["AgentRollout", "RolloutConfig"]

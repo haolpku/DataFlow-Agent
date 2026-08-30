@@ -82,30 +82,28 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
         self,
         trajectory: dict[str, Any],
         rubric: Any | None = None,
+        replay_verification: Any | None = None,
     ) -> tuple[Message, ...]:
         content: list[TextContent | ImageContent] = [
             TextContent(f"任务：{task_text(trajectory)}\n\n轨迹步骤：\n")
         ]
         if rubric is not None:
-            verification = trajectory.get("verification")
             content.append(TextContent(
                 "任务专用评审参考：\n"
                 f"{json.dumps(rubric, ensure_ascii=False, sort_keys=True)}\n"
             ))
-            if verification is not None:
-                content.append(TextContent(
-                    "确定性回放验证（任务完成情况的权威依据）：\n"
-                    f"{json.dumps(verification, ensure_ascii=False, sort_keys=True)}\n"
-                    "评估过程质量时请结合上述参考。不要根据 Agent 在 final answer "
-                    "中的自我陈述推断任务完成，也不要覆盖确定性的 reached_goal "
-                    "结果。\n\n"
-                ))
-            else:
-                content.append(TextContent(
-                    "本次评审没有提供确定性 verifier 结果。请根据任务、工具调用和"
-                    "真实 observation 判断是否完成，不能只相信 final answer 的"
-                    "自我陈述。\n\n"
-                ))
+        if replay_verification is not None:
+            content.append(TextContent(
+                "独立 ReplayVerify 结果：\n"
+                f"{json.dumps(replay_verification, ensure_ascii=False, sort_keys=True)}\n"
+                "passed/failed 只表示精确重放后的 Task verifier 结论；"
+                "diverged/error/not_applicable 不应被解释为任务已通过。\n\n"
+            ))
+        else:
+            content.append(TextContent(
+                "本次评审没有提供 ReplayVerify 结果。请根据任务、工具调用和"
+                "真实 observation 判断是否完成，不能只相信 final answer。\n\n"
+            ))
         for index, step in enumerate(steps(trajectory), start=1):
             action = step.get("action") or {}
             tool = action.get("tool")
@@ -187,12 +185,19 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
         result.update({"overall": None, "rationale": rationale})
         return result
 
-    def _judge_one(self, value: Any, rubric: Any | None = None) -> dict[str, Any]:
+    def _judge_one(
+        self,
+        value: Any,
+        rubric: Any | None = None,
+        replay_verification: Any | None = None,
+    ) -> dict[str, Any]:
         trajectory = as_trajectory_dict(value)
         if trajectory is None:
             return self._empty_verdict("unparseable_trajectory")
         try:
-            raw = self.llm_serving.generate(self._judge_messages(trajectory, rubric))
+            raw = self.llm_serving.generate(self._judge_messages(
+                trajectory, rubric, replay_verification
+            ))
         except Exception as exc:  # judge errors remain row-local
             self.logger.warning(
                 f"[AgentMMTrajectoryQualityEvaluator] judge call failed: {exc}"
@@ -226,6 +231,7 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
         input_key: str = "trajectory",
         output_key: str = "traj_overall",
         rubric_key: str | None = None,
+        replay_key: str | None = "replay_verification",
     ):
         if self.llm_serving is None:
             raise ValueError(
@@ -242,16 +248,28 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
                 f"rubric_key {rubric_key!r} not found in columns: "
                 f"{list(dataframe.columns)}"
             )
+        if replay_key is not None and replay_key not in dataframe.columns:
+            replay_key = None
         values = dataframe[input_key].tolist()
         rubrics = (
             dataframe[rubric_key].tolist()
             if rubric_key is not None
             else [None] * len(values)
         )
+        replay_values = (
+            dataframe[replay_key].tolist()
+            if replay_key is not None
+            else [None] * len(values)
+        )
         verdicts: list[dict[str, Any] | None] = [None] * len(values)
         with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
             futures = {
-                pool.submit(self._judge_one, value, rubrics[index]): index
+                pool.submit(
+                    self._judge_one,
+                    value,
+                    rubrics[index],
+                    replay_values[index],
+                ): index
                 for index, value in enumerate(values)
             }
             for future in as_completed(futures):

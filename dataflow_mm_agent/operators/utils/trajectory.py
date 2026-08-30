@@ -48,10 +48,14 @@ def as_trajectory_dict(value: Any) -> dict[str, Any] | None:
 
 
 def task_text(trajectory: Mapping[str, Any]) -> str:
-    scenario = trajectory.get("scenario")
-    if not isinstance(scenario, Mapping):
-        return ""
-    return str(scenario.get("instruction") or "")
+    values: list[str] = []
+    for raw in trajectory.get("messages") or []:
+        if not isinstance(raw, Mapping) or raw.get("role") != "user":
+            continue
+        for content in raw.get("content") or []:
+            if isinstance(content, Mapping) and content.get("type") == "text":
+                values.append(str(content.get("text") or ""))
+    return "\n".join(item for item in values if item)
 
 
 def normal_success(trajectory: Mapping[str, Any]) -> bool:

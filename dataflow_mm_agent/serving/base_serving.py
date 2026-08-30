@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Sequence
+from typing import Any, Mapping, Sequence
 
 from ..contracts import Message
 
@@ -21,6 +21,25 @@ class ModelServing(ABC):
         if len(results) != 1:
             raise RuntimeError("serving must return exactly one result per request")
         return results[0]
+
+    def generate_messages_with_options(
+        self,
+        conversations: Sequence[Sequence[Message]],
+        request_options: Sequence[Mapping[str, Any] | None],
+    ) -> list[str]:
+        """Generate with per-conversation provider options when supported.
+
+        The default intentionally preserves compatibility with deterministic,
+        local, and non-OpenAI serving implementations. Provider adapters that
+        support constrained decoding can override this method and apply the
+        options independently to each request.
+        """
+
+        if len(conversations) != len(request_options):
+            raise ValueError(
+                "conversations and request_options must have equal length"
+            )
+        return self.generate_messages(conversations)
 
     def health_check(self) -> bool:
         return True

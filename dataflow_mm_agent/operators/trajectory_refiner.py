@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 from dataflow import get_logger
@@ -12,9 +13,7 @@ from dataflow.core import OperatorABC
 from dataflow.utils.registry import OPERATOR_REGISTRY
 from dataflow.utils.storage import DataFlowStorage
 
-from ..contracts import Content, ImageContent, TextContent
-from ..env.registry import resolve_scenario
-from ..contracts.environment import Scenario
+from ..contracts import Content, ImageContent, Message, TaskResolver, TextContent
 from ..serving import ModelServing
 from .utils.trajectory import (
     as_trajectory_dict,
@@ -52,17 +51,24 @@ class AgentMMTrajectoryRefiner(OperatorABC):
     def __init__(
         self,
         llm_serving: ModelServing | None = None,
-        max_steps: int | None = None,
+        max_steps: int = 64,
         max_workers: int = 8,
+        task_resolver: TaskResolver | None = None,
         refine_failed: bool = True,
         score_threshold: float | None = 0.6,
         score_key: str = "traj_overall",
+        diagnosis_key: str | None = "traj_rationale",
         original_key: str | None = "trajectory_original",
         system_prompt: str | None = None,
         max_prior_chars: int = 2000,
         max_prior_images: int | None = 4,
+        max_diagnosis_chars: int = 4000,
         validate_tool_names: bool = True,
+        structured_actions: bool = False,
+        action_format_retries: int = 0,
         include_host_tools: bool = True,
+        workspace_root: str | Path | None = None,
+        workspace_retention: str = "ephemeral",
     ):
         if max_prior_chars < 1:
             raise ValueError("max_prior_chars must be positive")
@@ -72,26 +78,38 @@ class AgentMMTrajectoryRefiner(OperatorABC):
             or max_prior_images < 1
         ):
             raise ValueError("max_prior_images must be positive or None")
+        if max_diagnosis_chars < 1:
+            raise ValueError("max_diagnosis_chars must be positive")
         self.logger = get_logger()
         self.llm_serving = llm_serving
+        if task_resolver is None:
+            raise ValueError("AgentMMTrajectoryRefiner requires task_resolver")
+        self.task_resolver = task_resolver
         self.max_steps = max_steps
         self.max_workers = max_workers
         self.refine_failed = refine_failed
         self.score_threshold = score_threshold
         self.score_key = score_key
+        self.diagnosis_key = diagnosis_key
         self.original_key = original_key
         self.system_prompt = system_prompt
         self.max_prior_chars = max_prior_chars
         self.max_prior_images = max_prior_images
+        self.max_diagnosis_chars = max_diagnosis_chars
         self.validate_tool_names = validate_tool_names
         self.include_host_tools = include_host_tools
         self._generator = AgentMMExploreGenerator(
             serving=llm_serving,
+            task_resolver=task_resolver,
             max_steps=max_steps,
             max_workers=max_workers,
             system_prompt=system_prompt,
             validate_tool_names=validate_tool_names,
+            structured_actions=structured_actions,
+            action_format_retries=action_format_retries,
             include_host_tools=include_host_tools,
+            workspace_root=workspace_root,
+            workspace_retention=workspace_retention,
         )
 
     @staticmethod
@@ -226,7 +244,12 @@ class AgentMMTrajectoryRefiner(OperatorABC):
                 return False
         return False
 
-    def _refine_one(self, value: Any, score: Any) -> dict[str, Any]:
+    def _refine_one(
+        self,
+        value: Any,
+        score: Any,
+        judge_diagnosis: Any = None,
+    ) -> dict[str, Any]:
         trajectory = as_trajectory_dict(value)
         if not self._should_refine(trajectory, score):
             return {
@@ -236,30 +259,41 @@ class AgentMMTrajectoryRefiner(OperatorABC):
                 "note": "kept (passed quality / unparseable)",
                 "improved": False,
             }
-        scenario_value = trajectory.get("scenario") or {}
         try:
-            scenario = resolve_scenario(Scenario.from_dict(scenario_value))
+            task = self.task_resolver.resolve(
+                str(trajectory["task_id"]), env_id=str(trajectory["env_id"])
+            )
         except (KeyError, TypeError, ValueError) as exc:
             return {
                 "trajectory": value,
                 "original": None,
                 "refined": False,
-                "note": f"refine_error: invalid scenario: {exc}",
+                "note": f"refine_error: cannot resolve task: {exc}",
                 "improved": False,
             }
         original_task = task_text(trajectory)
-        scenario = replace(scenario, instruction=original_task)
         diagnosis = self._diagnose(trajectory)
+        if isinstance(judge_diagnosis, str) and judge_diagnosis.strip():
+            feedback = judge_diagnosis.strip()
+            if len(feedback) > self.max_diagnosis_chars:
+                feedback = feedback[:self.max_diagnosis_chars] + "...[truncated]"
+            diagnosis = f"{diagnosis}\nJudge feedback: {feedback}"
         try:
-            repaired = self._generator._run_scenario(
-                scenario,
-                instruction_content=self._refine_instruction_content(
-                    trajectory,
-                    diagnosis=diagnosis,
-                    task=original_task,
+            refined_task = replace(
+                task,
+                messages=(
+                    *task.messages,
+                    Message.of(
+                        "user",
+                        self._refine_instruction_content(
+                            trajectory,
+                            diagnosis=diagnosis,
+                            task=original_task,
+                        ),
+                    ),
                 ),
             )
-            repaired = replace(repaired, scenario=scenario)
+            repaired = self._generator._runner().run(refined_task)
         except Exception as exc:
             self.logger.error(f"[AgentMMTrajectoryRefiner] refine failed: {exc}")
             return {
@@ -297,11 +331,17 @@ class AgentMMTrajectoryRefiner(OperatorABC):
             if self.score_key in dataframe.columns
             else [None] * len(dataframe)
         )
+        diagnoses = (
+            dataframe[self.diagnosis_key].tolist()
+            if self.diagnosis_key is not None
+            and self.diagnosis_key in dataframe.columns
+            else [None] * len(dataframe)
+        )
         values = dataframe[input_key].tolist()
         results: list[dict[str, Any] | None] = [None] * len(values)
         with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
             futures = {
-                pool.submit(self._refine_one, value, score): index
+                pool.submit(self._refine_one, value, score, diagnoses[index]): index
                 for index, (value, score) in enumerate(zip(values, scores))
             }
             for future in as_completed(futures):

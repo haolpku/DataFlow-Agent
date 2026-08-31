@@ -1,15 +1,22 @@
 # DataFlow-MM-Agent showcases
 
 These are GitHub-native walkthroughs of real multimodal trajectories. Each page
-contains the natural task prompt, selected visual checkpoints, every tool action
-inside a folded section, the final answer, Judge results, and ReplayVerify status.
-Compact JSON is provided separately without system prompts, credentials, local
-workspace paths, or embedded base64 images.
+contains the natural task prompt, a fading GIF of the complete visual trajectory,
+every tool action inside a folded section, the final answer, Judge results, and
+ReplayVerify status. Every rendered observation is also preserved at its original
+exported resolution inside the corresponding tool-call section. Compact JSON is
+provided separately without system prompts, credentials, local workspace paths,
+or embedded base64 images.
 
 > **Refine comparisons are never shown as final-only results.** Every page marked
 > as refined opens with an explicit notice and includes the complete original
 > trajectory, its Judge/ReplayVerify diagnosis, and the complete refined
 > trajectory. Refine creates a new rollout and does not overwrite the original.
+
+For before/after comparisons, the original and refined rollouts have separate
+full-trajectory animations. The PowerPoint case therefore shows all 61 original
+visual observations and all 57 refined visual observations in both overview and
+step-level form.
 
 <table>
   <tr>
@@ -62,7 +69,8 @@ showcases/
 └── trajectories/              # compact, machine-readable JSON
 ```
 
-The exporter intentionally selects representative visual checkpoints instead
-of duplicating every rendered frame in every page. All actions and textual tool
-observations remain in the compact trajectory JSON. Refined cases use a paired
-JSON document with separate `original` and `refined` records.
+The exporter writes every rendered observation once as a source PNG, embeds it
+under the matching tool call, and builds a smaller 64-color GIF overview from the
+same complete sequence. Compact trajectory JSON links every step to its exported
+images through `observation_images`. Refined cases use a paired JSON document with
+separate `original` and `refined` records.

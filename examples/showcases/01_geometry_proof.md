@@ -2,6 +2,8 @@
 
 [← All showcases](README.md)
 
+> **Complete trajectory imagery:** the animation is a compressed overview of every rendered observation. Every original image is also preserved inside its corresponding tool-call section.
+
 The agent starts from independent points, progressively constructs the diagram, reasons over fresh renders, and finishes with a proof.
 
 | Env | Task | Branch | Steps | ReplayVerify | Judge |
@@ -16,24 +18,7 @@ The agent starts from independent points, progressively constructs the diagram, 
 
 ## Visual checkpoints
 
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="assets/geometry_proof/step-001-01.png" alt="Step 1"><br><sub>Step 1</sub></td>
-    <td align="center" width="50%"><img src="assets/geometry_proof/step-002-01.png" alt="Step 2"><br><sub>Step 2</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/geometry_proof/step-004-01.png" alt="Step 4"><br><sub>Step 4</sub></td>
-    <td align="center" width="50%"><img src="assets/geometry_proof/step-008-01.png" alt="Step 8"><br><sub>Step 8</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/geometry_proof/step-009-01.png" alt="Step 9"><br><sub>Step 9</sub></td>
-    <td align="center" width="50%"><img src="assets/geometry_proof/step-010-01.png" alt="Step 10"><br><sub>Step 10</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/geometry_proof/step-011-01.png" alt="Step 11"><br><sub>Step 11</sub></td>
-    <td width="50%"></td>
-  </tr>
-</table>
+<p align="center"><img src="assets/geometry_proof/trajectory.gif" alt="Full trajectory — every rendered observation in chronological order"><br><sub>Full trajectory — every rendered observation in chronological order</sub></p>
 
 ## Trajectory
 
@@ -174,6 +159,8 @@ Draw line BC.
 
 <pre><code>{&quot;action&quot;: &quot;draw_line&quot;, &quot;created&quot;: [{&quot;name&quot;: &quot;line_BC&quot;, &quot;type&quot;: &quot;line&quot;}], &quot;deleted&quot;: [], &quot;success&quot;: true, &quot;updated&quot;: []}</code></pre>
 
+![step 3 observation](assets/geometry_proof/step-003-01.png)
+
 </details>
 
 <details>
@@ -218,6 +205,8 @@ Draw line AB and line AC.
 
 <pre><code>{&quot;action&quot;: &quot;draw_line&quot;, &quot;created&quot;: [{&quot;name&quot;: &quot;line_AB&quot;, &quot;type&quot;: &quot;line&quot;}], &quot;deleted&quot;: [], &quot;success&quot;: true, &quot;updated&quot;: []}</code></pre>
 
+![step 5 observation](assets/geometry_proof/step-005-01.png)
+
 </details>
 
 <details>
@@ -239,6 +228,8 @@ Draw line AC.
 
 <pre><code>{&quot;action&quot;: &quot;draw_line&quot;, &quot;created&quot;: [{&quot;name&quot;: &quot;line_AC&quot;, &quot;type&quot;: &quot;line&quot;}], &quot;deleted&quot;: [], &quot;success&quot;: true, &quot;updated&quot;: []}</code></pre>
 
+![step 6 observation](assets/geometry_proof/step-006-01.png)
+
 </details>
 
 <details>
@@ -259,6 +250,8 @@ Construct perpendicular projection E of D onto AB.
 **Observation**
 
 <pre><code>{&quot;action&quot;: &quot;construct_projection&quot;, &quot;created&quot;: [{&quot;name&quot;: &quot;E&quot;, &quot;type&quot;: &quot;point&quot;}], &quot;deleted&quot;: [], &quot;success&quot;: true, &quot;updated&quot;: []}</code></pre>
+
+![step 7 observation](assets/geometry_proof/step-007-01.png)
 
 </details>
 

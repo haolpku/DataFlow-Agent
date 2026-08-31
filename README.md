@@ -9,7 +9,24 @@ for evaluation, supervised fine-tuning, and reinforcement learning. The current
 canonical content types are text and image; the contracts are designed so that
 additional modalities can be introduced later without making every Env stateful.
 
+This is an extension package built on top of **DataFlow-MM**. Its
+`open-dataflow-mm` dependency is declared by the package and installed
+automatically by `pip`.
+
 Python package: `dataflow_mm_agent` · Python `>=3.10` · Apache-2.0
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="examples/showcases/01_geometry_proof.md"><img src="examples/showcases/assets/geometry_proof/trajectory.gif" alt="Agent progressively constructing an olympiad geometry proof"></a><br>
+      <sub>Constructing and proving an olympiad geometry problem</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="examples/showcases/02_pixel_game.md"><img src="examples/showcases/assets/pixel_game/trajectory.gif" alt="Agent collecting five gems in a visual grid game"></a><br>
+      <sub>Collecting five gems under a deterministic move budget</sub>
+    </td>
+  </tr>
+</table>
 
 ## What can this package do?
 
@@ -24,9 +41,9 @@ Python package: `dataflow_mm_agent` · Python `>=3.10` · Apache-2.0
 5. **Why a deterministic verifier is necessary** —
    [inspect a trajectory that received Judge 1.0 but failed exact state verification](examples/showcases/05_why_deterministic_verifier.md).
 
-The showcase pages use GitHub-native Markdown, ordinary image assets, folded
-tool steps, and compact JSON. They do not require JavaScript or embed images as
-base64 inside a large HTML file. See the
+The showcase pages use GitHub-native Markdown, full-trajectory GIF previews,
+ordinary image assets under every corresponding tool step, and compact JSON.
+They do not require JavaScript or embed images as base64 inside a large HTML file. See the
 [showcase index](examples/showcases/README.md) for artifacts and run metadata.
 
 ## Installation
@@ -60,9 +77,8 @@ python -m pip install --upgrade pip
 python -m pip install .
 ```
 
-`pip` installs `dataflow-mm-agent` and its declared Python dependencies. If the
-configured package index cannot resolve `open-dataflow-mm`, install that package
-from its wheel or source distribution first, then rerun `python -m pip install .`.
+`pip` installs `dataflow-mm-agent`, its DataFlow-MM base package
+(`open-dataflow-mm`), and the other declared Python dependencies automatically.
 
 5. Verify the installation:
 

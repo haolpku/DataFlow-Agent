@@ -4,6 +4,8 @@
 
 > **Refine comparison:** this case shows the complete original trajectory and the complete refined trajectory. The refined rollout improved the VLM Judge score, but deterministic replay still rejected its exact final state.
 
+> **Complete trajectory imagery:** each animation includes every rendered observation in order, and every original image remains attached to its tool call.
+
 A VLM Judge evaluates whether a trajectory looks coherent and complete. It is not the source of truth for hidden or exact environment state.
 
 ## Original → Refined at a glance
@@ -21,24 +23,7 @@ A VLM Judge evaluates whether a trajectory looks coherent and complete. It is no
 
 ## Original visual checkpoints
 
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/original-step-001-01.png" alt="Step 1"><br><sub>Step 1</sub></td>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/original-step-002-01.png" alt="Step 2"><br><sub>Step 2</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/original-step-003-01.png" alt="Step 3"><br><sub>Step 3</sub></td>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/original-step-004-01.png" alt="Step 4"><br><sub>Step 4</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/original-step-005-01.png" alt="Step 5"><br><sub>Step 5</sub></td>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/original-step-006-01.png" alt="Step 6"><br><sub>Step 6</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/original-step-007-01.png" alt="Step 7"><br><sub>Step 7</sub></td>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/original-step-008-01.png" alt="Step 8"><br><sub>Step 8</sub></td>
-  </tr>
-</table>
+<p align="center"><img src="assets/deterministic_verifier/original-trajectory.gif" alt="Original trajectory — every rendered observation in chronological order"><br><sub>Original trajectory — every rendered observation in chronological order</sub></p>
 
 ## Original trajectory
 
@@ -254,16 +239,7 @@ No final answer was recorded.
 
 ## Refined visual checkpoints
 
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/refined-step-001-01.png" alt="Step 1"><br><sub>Step 1</sub></td>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/refined-step-002-01.png" alt="Step 2"><br><sub>Step 2</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/deterministic_verifier/refined-step-003-01.png" alt="Step 3"><br><sub>Step 3</sub></td>
-    <td width="50%"></td>
-  </tr>
-</table>
+<p align="center"><img src="assets/deterministic_verifier/refined-trajectory.gif" alt="Refined trajectory — every rendered observation in chronological order"><br><sub>Refined trajectory — every rendered observation in chronological order</sub></p>
 
 ## Refined trajectory
 
@@ -379,15 +355,6 @@ BOT已在(0,7)，最后一颗宝石在(2,7)，START在(4,7)。向下移动4步�
 The refined agent called `finish`, and the Judge assigned 1.0 after reading the last screen as a successful return to START. Fresh deterministic replay found a different exact state: all gems were collected, but the player was not at START. The refined natural-language completion claim was still a false positive.
 
 Exact checks: reached_goal: fail.
-
-## Full pipeline selection summary
-
-| Task | Selected branch | Steps | Verifier | Judge |
-| --- | --- | ---: | --- | ---: |
-| `task0001` | initial | 6 | passed | 0.90 |
-| `task0002` | initial | 2 | passed | 1.00 |
-| `task0003` | refined | 4 | failed / not run | 1.00 |
-| `task0004` | initial | 6 | passed | 0.95 |
 
 ## Takeaway
 

@@ -8,7 +8,23 @@
 内容类型是文本和图像；相关契约在设计上允许未来加入更多模态，而不要求所有 Env
 都必须是有状态的。
 
+这是一个建立在 **DataFlow-MM** 之上的扩展包；它已经声明了
+`open-dataflow-mm` 依赖，`pip` 会在安装时自动处理。
+
 Python 包：`dataflow_mm_agent` · Python `>=3.10` · Apache-2.0
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <a href="examples/showcases/01_geometry_proof.md"><img src="examples/showcases/assets/geometry_proof/trajectory.gif" alt="Agent 逐步构造并证明一道奥林匹克几何题"></a><br>
+      <sub>自主构图并证明一道奥林匹克几何题</sub>
+    </td>
+    <td align="center" width="50%">
+      <a href="examples/showcases/02_pixel_game.md"><img src="examples/showcases/assets/pixel_game/trajectory.gif" alt="Agent 在视觉网格游戏中收集五颗宝石"></a><br>
+      <sub>在确定性步数预算内收集五颗宝石</sub>
+    </td>
+  </tr>
+</table>
 
 ## 这个包可以做什么？
 
@@ -23,10 +39,10 @@ Python 包：`dataflow_mm_agent` · Python `>=3.10` · Apache-2.0
 5. **为什么需要确定性 Verifier**——
    [查看一条获得 Judge 1.0 分、却没有通过精确状态验证的轨迹](examples/showcases/05_why_deterministic_verifier.md)。
 
-Showcase 页面完全使用 GitHub 原生 Markdown、普通图片资源、可折叠工具步骤和
-精简 JSON。它们不依赖 JavaScript，也不会把图片以 base64 形式嵌入庞大的 HTML
-文件。所有产物和运行元数据可从 [Showcase 索引](examples/showcases/README.md)
-进入。
+Showcase 页面完全使用 GitHub 原生 Markdown、全轨迹 GIF 预览、归属于各工具
+步骤的普通图片资源和精简 JSON。它们不依赖 JavaScript，也不会把图片以 base64
+形式嵌入庞大的 HTML 文件。所有产物和运行元数据可从
+[Showcase 索引](examples/showcases/README.md)进入。
 
 ## 安装
 
@@ -57,9 +73,8 @@ python -m pip install --upgrade pip
 python -m pip install .
 ```
 
-`pip` 会安装 `dataflow-mm-agent` 及其声明的 Python 依赖。如果当前配置的软件源
-无法解析 `open-dataflow-mm`，请先从它的 wheel 或源码发行包安装该依赖，再重新
-运行 `python -m pip install .`。
+`pip` 会自动安装 `dataflow-mm-agent`、作为基础的 DataFlow-MM
+（`open-dataflow-mm`）以及其他已声明的 Python 依赖。
 
 5. 验证安装结果：
 

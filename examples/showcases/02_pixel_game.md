@@ -2,6 +2,8 @@
 
 [← All showcases](README.md)
 
+> **Complete trajectory imagery:** the animation is a compressed overview of every rendered observation. Every original image is also preserved inside its corresponding tool-call section.
+
 The agent reads a rendered maze, plans around walls, collects five gems, and reaches the goal under a deterministic move budget.
 
 | Env | Task | Branch | Steps | ReplayVerify | Judge |
@@ -16,20 +18,7 @@ The agent reads a rendered maze, plans around walls, collects five gems, and rea
 
 ## Visual checkpoints
 
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="assets/pixel_game/step-002-01.png" alt="Step 2"><br><sub>Step 2</sub></td>
-    <td align="center" width="50%"><img src="assets/pixel_game/step-007-01.png" alt="Step 7"><br><sub>Step 7</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/pixel_game/step-013-01.png" alt="Step 13"><br><sub>Step 13</sub></td>
-    <td align="center" width="50%"><img src="assets/pixel_game/step-019-01.png" alt="Step 19"><br><sub>Step 19</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/pixel_game/step-025-01.png" alt="Step 25"><br><sub>Step 25</sub></td>
-    <td align="center" width="50%"><img src="assets/pixel_game/step-026-01.png" alt="Step 26"><br><sub>Step 26</sub></td>
-  </tr>
-</table>
+<p align="center"><img src="assets/pixel_game/trajectory.gif" alt="Full trajectory — every rendered observation in chronological order"><br><sub>Full trajectory — every rendered observation in chronological order</sub></p>
 
 ## Trajectory
 
@@ -92,6 +81,8 @@ Move UP 6 steps to collect Gem 1 at (1,1).
 
 <pre><code>Moved 6 step(s) up. Collected 1/5.</code></pre>
 
+![step 3 observation](assets/pixel_game/step-003-01.png)
+
 </details>
 
 <details>
@@ -111,6 +102,8 @@ Now move down 5 steps to reach (1,6).
 **Observation**
 
 <pre><code>Moved 5 step(s) down. Collected 1/5.</code></pre>
+
+![step 4 observation](assets/pixel_game/step-004-01.png)
 
 </details>
 
@@ -132,6 +125,8 @@ Move down 1 step to (1,7), then right 2 steps to (3,7) to collect Gem 2.
 
 <pre><code>Moved 1 step(s) down. Collected 1/5.</code></pre>
 
+![step 5 observation](assets/pixel_game/step-005-01.png)
+
 </details>
 
 <details>
@@ -151,6 +146,8 @@ Move right 2 steps to collect Gem 2 at (3,6).
 **Observation**
 
 <pre><code>Moved 2 step(s) right. Collected 1/5.</code></pre>
+
+![step 6 observation](assets/pixel_game/step-006-01.png)
 
 </details>
 
@@ -194,6 +191,8 @@ Move UP 1 step to x=3, y=6 to collect Gem 2.
 
 <pre><code>Moved 1 step(s) up. Collected 2/5.</code></pre>
 
+![step 8 observation](assets/pixel_game/step-008-01.png)
+
 </details>
 
 <details>
@@ -213,6 +212,8 @@ Move UP 1 step to (3,5).
 **Observation**
 
 <pre><code>Moved 1 step(s) up. Collected 2/5.</code></pre>
+
+![step 9 observation](assets/pixel_game/step-009-01.png)
 
 </details>
 
@@ -234,6 +235,8 @@ Move RIGHT 1 step to (4,5).
 
 <pre><code>Moved 1 step(s) right. Collected 2/5.</code></pre>
 
+![step 10 observation](assets/pixel_game/step-010-01.png)
+
 </details>
 
 <details>
@@ -254,6 +257,8 @@ Move RIGHT 2 steps to (6,5), then DOWN 1 step to (6,6) to collect Gem 3 at (6,6)
 
 <pre><code>Moved 1 step(s) right; movement blocked. Collected 2/5.</code></pre>
 
+![step 11 observation](assets/pixel_game/step-011-01.png)
+
 </details>
 
 <details>
@@ -273,6 +278,8 @@ We moved right 1 step into (5,5) which succeeded! Let&#x27;s check BOT position:
 **Observation**
 
 <pre><code>Moved 1 step(s) down. Collected 2/5.</code></pre>
+
+![step 12 observation](assets/pixel_game/step-012-01.png)
 
 </details>
 
@@ -316,6 +323,8 @@ Move DOWN 1 step to row 7.
 
 <pre><code>Moved 1 step(s) down. Collected 2/5.</code></pre>
 
+![step 14 observation](assets/pixel_game/step-014-01.png)
+
 </details>
 
 <details>
@@ -335,6 +344,8 @@ Move RIGHT 2 steps to collect Gem 3 at (6,6).
 **Observation**
 
 <pre><code>Moved 2 step(s) right. Collected 2/5.</code></pre>
+
+![step 15 observation](assets/pixel_game/step-015-01.png)
 
 </details>
 
@@ -356,6 +367,8 @@ Move UP 1 step to collect Gem 3 at (6,6).
 
 <pre><code>Moved 1 step(s) up. Collected 3/5.</code></pre>
 
+![step 16 observation](assets/pixel_game/step-016-01.png)
+
 </details>
 
 <details>
@@ -376,6 +389,8 @@ Move UP 3 steps to (6,3) to collect Gem 4 at (7,3). Wait, Gem 4 is at (7,3), so 
 
 <pre><code>Moved 3 step(s) up. Collected 3/5.</code></pre>
 
+![step 17 observation](assets/pixel_game/step-017-01.png)
+
 </details>
 
 <details>
@@ -395,6 +410,8 @@ Move RIGHT 1 step to collect Gem 4 at (7,3).
 **Observation**
 
 <pre><code>Moved 1 step(s) right. Collected 4/5.</code></pre>
+
+![step 18 observation](assets/pixel_game/step-018-01.png)
 
 </details>
 
@@ -438,6 +455,8 @@ Move UP 1 step to collect Gem 5 at (4,2). Wait, Gem 5 is at column 4 (1-indexed:
 
 <pre><code>Moved 0 step(s) up; movement blocked. Collected 4/5.</code></pre>
 
+![step 20 observation](assets/pixel_game/step-020-01.png)
+
 </details>
 
 <details>
@@ -457,6 +476,8 @@ Move LEFT 1 step to get to col 5 (under gem), then UP 1 step to collect Gem 5. W
 **Observation**
 
 <pre><code>Moved 1 step(s) left. Collected 4/5.</code></pre>
+
+![step 21 observation](assets/pixel_game/step-021-01.png)
 
 </details>
 
@@ -478,6 +499,8 @@ Move UP 1 step to collect Gem 5 at (5,2).
 
 <pre><code>Moved 1 step(s) up. Collected 5/5.</code></pre>
 
+![step 22 observation](assets/pixel_game/step-022-01.png)
+
 </details>
 
 <details>
@@ -498,6 +521,8 @@ All 5 gems collected! Now head to GOAL at top right (col 7, row 0). BOT is at co
 
 <pre><code>Moved 1 step(s) down. Collected 5/5.</code></pre>
 
+![step 23 observation](assets/pixel_game/step-023-01.png)
+
 </details>
 
 <details>
@@ -517,6 +542,8 @@ Move RIGHT 2 steps to col 7, row 3.
 **Observation**
 
 <pre><code>Moved 2 step(s) right. Collected 5/5.</code></pre>
+
+![step 24 observation](assets/pixel_game/step-024-01.png)
 
 </details>
 

@@ -8,9 +8,12 @@ import base64
 import copy
 import html
 import json
+import math
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable, Mapping
+
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 
 CASE_CONFIG: dict[str, dict[str, Any]] = {
@@ -22,7 +25,7 @@ CASE_CONFIG: dict[str, dict[str, Any]] = {
             "The agent starts from independent points, progressively constructs the "
             "diagram, reasons over fresh renders, and finishes with a proof."
         ),
-        "checkpoints": (1, 2, 4, 8, 9, 10, 11),
+        "animation_speed": 1.3,
     },
     "pixel_game": {
         "order": 2,
@@ -32,7 +35,7 @@ CASE_CONFIG: dict[str, dict[str, Any]] = {
             "The agent reads a rendered maze, plans around walls, collects five gems, "
             "and reaches the goal under a deterministic move budget."
         ),
-        "checkpoints": (2, 7, 13, 19, 25, 26),
+        "animation_speed": 1.3,
     },
     "pptx": {
         "order": 3,
@@ -42,8 +45,7 @@ CASE_CONFIG: dict[str, dict[str, Any]] = {
             "The task supplies three visual references. The agent recreates their "
             "content and hierarchy as editable 16:9 slides and reviews the render."
         ),
-        "checkpoints": (58,),
-        "original_checkpoints": (13, 45, 64),
+        "animation_speed": 1.7,
     },
     "diagram": {
         "order": 4,
@@ -53,7 +55,7 @@ CASE_CONFIG: dict[str, dict[str, Any]] = {
             "The agent synthesizes two incident-runbook pages into one operational "
             "flow, observes a legibility problem, and repairs the affected nodes."
         ),
-        "checkpoints": (1, 4, 5, 6),
+        "animation_speed": 1.0,
     },
 }
 
@@ -170,27 +172,123 @@ def evaluation(row: Mapping[str, Any]) -> tuple[str, str]:
     return replay_label, judge_label + (f"\n\n{replay_detail}" if replay_detail else "")
 
 
-def collect_checkpoints(
+def collect_observation_images(
     trajectory: Mapping[str, Any],
-    checkpoints: Iterable[int],
     assets: Path,
     *,
     prefix: str = "",
 ) -> dict[int, list[str]]:
-    checkpoint_paths: dict[int, list[str]] = {}
-    selected = set(checkpoints)
+    observation_paths: dict[int, list[str]] = {}
     for step in trajectory.get("steps") or ():
         step_index = int(step.get("index") or 0)
-        if step_index not in selected:
-            continue
         observation = observation_message(trajectory, step)
         if observation is None:
             continue
         stem = f"{prefix}step-{step_index:03d}"
-        checkpoint_paths[step_index] = save_images(
+        paths = save_images(
             observation.get("content") or (), assets, stem
         )
-    return checkpoint_paths
+        if paths:
+            observation_paths[step_index] = paths
+    return observation_paths
+
+
+def fade_animation(
+    observation_paths: Mapping[int, list[str]],
+    assets: Path,
+    filename: str,
+    *,
+    stage: str | None = None,
+    speed: float = 1.0,
+) -> str | None:
+    """Create a compact, looping overview without replacing source PNGs."""
+    items = [
+        (step_index, image_index, assets / name)
+        for step_index, names in observation_paths.items()
+        for image_index, name in enumerate(names, start=1)
+    ]
+    destination = assets / filename
+    if not items:
+        destination.unlink(missing_ok=True)
+        return None
+
+    # Long authoring trajectories need a smaller preview. The full-resolution
+    # observations remain available inside their corresponding tool calls.
+    maximum_size = (640, 480) if len(items) > 30 else (760, 640)
+    prepared: list[tuple[int, int, Image.Image]] = []
+    for step_index, image_index, path in items:
+        with Image.open(path) as source:
+            frame = ImageOps.contain(
+                source.convert("RGB"), maximum_size, Image.Resampling.LANCZOS
+            )
+        prepared.append((step_index, image_index, frame))
+
+    canvas_width = max(frame.width for _, _, frame in prepared)
+    image_height = max(frame.height for _, _, frame in prepared)
+    header_height = 36
+    canvas_height = image_height + header_height
+    font_size = 18 if len(items) > 30 else 20
+    try:
+        font = ImageFont.load_default(size=font_size)
+    except TypeError:  # Pillow < 10.1
+        font = ImageFont.load_default()
+
+    base_frames: list[Image.Image] = []
+    for step_index, image_index, frame in prepared:
+        canvas = Image.new("RGB", (canvas_width, canvas_height), "white")
+        canvas.paste(
+            frame,
+            (
+                (canvas_width - frame.width) // 2,
+                header_height + (image_height - frame.height) // 2,
+            ),
+        )
+        label = f"{stage} · " if stage else ""
+        label += f"Step {step_index}"
+        if len(observation_paths.get(step_index, ())) > 1:
+            label += f" · Image {image_index}"
+        draw = ImageDraw.Draw(canvas)
+        draw.rectangle((0, 0, canvas_width, header_height), fill=(17, 24, 39))
+        draw.text((14, 7), label, fill="white", font=font)
+        base_frames.append(canvas)
+
+    if speed <= 0:
+        raise ValueError("animation speed must be positive")
+    hold_ms = 900 if len(items) <= 12 else 550 if len(items) <= 30 else 330
+    transition_alphas = (0.5,) if len(items) > 30 else (0.33, 0.66)
+    # GIF stores durations in centiseconds. Quantize deliberately so the encoded
+    # playback rate stays close to the requested multiplier after saving.
+    hold_ms = max(20, math.ceil(hold_ms / speed / 10) * 10)
+    transition_ms = max(20, round(110 / speed / 10) * 10)
+    frames: list[Image.Image] = []
+    durations: list[int] = []
+    for index, current in enumerate(base_frames):
+        frames.append(current)
+        durations.append(hold_ms)
+        if len(base_frames) > 1:
+            following = base_frames[(index + 1) % len(base_frames)]
+            for alpha in transition_alphas:
+                frames.append(Image.blend(current, following, alpha))
+                durations.append(transition_ms)
+
+    palette_frames = [
+        frame.quantize(
+            colors=64,
+            method=Image.Quantize.MEDIANCUT,
+            dither=Image.Dither.NONE,
+        )
+        for frame in frames
+    ]
+    palette_frames[0].save(
+        destination,
+        save_all=True,
+        append_images=palette_frames[1:],
+        duration=durations,
+        loop=0,
+        optimize=True,
+        disposal=1,
+    )
+    return filename
 
 
 def compact_trajectory(
@@ -198,7 +296,7 @@ def compact_trajectory(
     *,
     prompt: str,
     slug: str,
-    checkpoint_paths: Mapping[int, list[str]],
+    observation_paths: Mapping[int, list[str]],
 ) -> dict[str, Any]:
     trajectory = row["trajectory"]
     compact_steps: list[dict[str, Any]] = []
@@ -215,9 +313,9 @@ def compact_trajectory(
                 observation.get("content") or () if observation else (),
                 limit=20_000,
             ),
-            "checkpoint_images": [
+            "observation_images": [
                 f"../assets/{slug}/{name}"
-                for name in checkpoint_paths.get(int(step.get("index") or 0), [])
+                for name in observation_paths.get(int(step.get("index") or 0), [])
             ],
         })
     return {
@@ -238,22 +336,13 @@ def compact_trajectory(
     }
 
 
-def trajectory_gallery(
-    checkpoint_paths: Mapping[int, list[str]], slug: str
-) -> list[tuple[str, str]]:
-    return [
-        (f"assets/{slug}/{name}", f"Step {step_index}")
-        for step_index, names in checkpoint_paths.items()
-        for name in names
-    ]
-
-
 def trajectory_stage_lines(
     row: Mapping[str, Any],
     *,
     slug: str,
-    checkpoint_paths: Mapping[int, list[str]],
+    observation_paths: Mapping[int, list[str]],
     stage: str | None,
+    animation: str | None,
 ) -> list[str]:
     trajectory = row["trajectory"]
     qualifier = f"{stage} " if stage else ""
@@ -261,13 +350,19 @@ def trajectory_stage_lines(
     trajectory_heading = f"{stage} trajectory" if stage else "Trajectory"
     answer_heading = f"{stage} final answer" if stage else "Final answer"
     evaluation_heading = f"{stage} evaluation" if stage else "Evaluation"
-    visual_items = trajectory_gallery(checkpoint_paths, slug)
     lines: list[str] = []
-    if visual_items:
+    if animation:
+        caption = (
+            f"{stage} trajectory — every rendered observation in chronological order"
+            if stage
+            else "Full trajectory — every rendered observation in chronological order"
+        )
         lines.extend([
             f"## {visual_heading}",
             "",
-            gallery(visual_items),
+            '<p align="center">'
+            f'<img src="assets/{slug}/{animation}" alt="{html.escape(caption, quote=True)}">'
+            f"<br><sub>{html.escape(caption)}</sub></p>",
             "",
         ])
     tools = Counter(
@@ -319,7 +414,7 @@ def trajectory_stage_lines(
                 "<pre><code>" + html.escape(observed) + "</code></pre>",
                 "",
             ])
-        for name in checkpoint_paths.get(index, []):
+        for name in observation_paths.get(index, []):
             lines.extend([
                 f"![{qualifier}step {index} observation](assets/{slug}/{name})",
                 "",
@@ -369,31 +464,67 @@ def render_case(
     compact_dir = output_dir / "trajectories"
     compact_dir.mkdir(parents=True, exist_ok=True)
 
+    # Generated visual records are rebuilt from the selected source row so stale
+    # frames from an earlier export cannot survive in the published showcase.
+    for pattern in (
+        "input-reference-*",
+        "step-*",
+        "original-step-*",
+        "trajectory.gif",
+        "original-trajectory.gif",
+        "refined-trajectory.gif",
+    ):
+        for generated in assets.glob(pattern):
+            generated.unlink()
+
     task_message = first_task_message(trajectory)
     prompt = text_content(task_message.get("content") or (), limit=100_000)
     input_images = save_images(
         task_message.get("content") or (), assets, "input-reference"
     )
 
-    checkpoint_paths = collect_checkpoints(
-        trajectory, config["checkpoints"], assets
-    )
+    observation_paths = collect_observation_images(trajectory, assets)
     is_refine_pair = bool(row.get("_refined") and original_row is not None)
-    original_checkpoint_paths: dict[int, list[str]] = {}
+    original_observation_paths: dict[int, list[str]] = {}
     if is_refine_pair:
-        original_checkpoint_paths = collect_checkpoints(
-            original_row["trajectory"],
-            config.get("original_checkpoints", ()),
+        original_trajectory = original_row["trajectory"]
+        original_observation_paths = collect_observation_images(
+            original_trajectory,
             assets,
             prefix="original-",
         )
 
+    if is_refine_pair:
+        animation_speed = float(config.get("animation_speed", 1.0))
+        original_animation = fade_animation(
+            original_observation_paths,
+            assets,
+            "original-trajectory.gif",
+            stage="Original",
+            speed=animation_speed,
+        )
+        refined_animation = fade_animation(
+            observation_paths,
+            assets,
+            "refined-trajectory.gif",
+            stage="Refined",
+            speed=animation_speed,
+        )
+    else:
+        original_animation = None
+        refined_animation = fade_animation(
+            observation_paths,
+            assets,
+            "trajectory.gif",
+            speed=float(config.get("animation_speed", 1.0)),
+        )
+
     compact_refined = compact_trajectory(
-        row, prompt=prompt, slug=slug, checkpoint_paths=checkpoint_paths
+        row, prompt=prompt, slug=slug, observation_paths=observation_paths
     )
     if is_refine_pair:
         compact = {
-            "format": "dataflow-mm-agent-showcase-refine-pair-v1",
+            "format": "dataflow-mm-agent-showcase-refine-pair-v2",
             "task_id": row.get("task_id"),
             "env_id": env_id,
             "task_prompt": prompt,
@@ -401,13 +532,13 @@ def render_case(
                 original_row,
                 prompt=prompt,
                 slug=slug,
-                checkpoint_paths=original_checkpoint_paths,
+                observation_paths=original_observation_paths,
             ),
             "refined": compact_refined,
         }
     else:
         compact = {
-            "format": "dataflow-mm-agent-showcase-compact-v1",
+            "format": "dataflow-mm-agent-showcase-compact-v2",
             "task_id": row.get("task_id"),
             "env_id": env_id,
             "task_prompt": prompt,
@@ -432,6 +563,12 @@ def render_case(
             "not overwrite the original record.",
             "",
         ])
+    lines.extend([
+        "> **Complete trajectory imagery:** the animation is a compressed overview of "
+        "every rendered observation. Every original image is also preserved inside its "
+        "corresponding tool-call section.",
+        "",
+    ])
     lines.extend([str(config["summary"]), ""])
     if is_refine_pair:
         original_replay, original_judge_value = evaluation(original_row)
@@ -478,8 +615,9 @@ def render_case(
         lines.extend(trajectory_stage_lines(
             original_row,
             slug=slug,
-            checkpoint_paths=original_checkpoint_paths,
+            observation_paths=original_observation_paths,
             stage="Original",
+            animation=original_animation,
         ))
         lines.extend([
             "## Why Refine ran",
@@ -490,15 +628,17 @@ def render_case(
         lines.extend(trajectory_stage_lines(
             row,
             slug=slug,
-            checkpoint_paths=checkpoint_paths,
+            observation_paths=observation_paths,
             stage="Refined",
+            animation=refined_animation,
         ))
     else:
         lines.extend(trajectory_stage_lines(
             row,
             slug=slug,
-            checkpoint_paths=checkpoint_paths,
+            observation_paths=observation_paths,
             stage=None,
+            animation=refined_animation,
         ))
     (output_dir / f"{config['order']:02d}_{slug}.md").write_text(
         "\n".join(lines), encoding="utf-8"
@@ -535,11 +675,9 @@ def normalize_legacy_replay(row: Mapping[str, Any]) -> dict[str, Any]:
 def render_verifier_case(
     false_positive: Mapping[str, Any],
     pipeline_initial: list[dict[str, Any]],
-    pipeline_refined: list[dict[str, Any]],
     output_dir: Path,
 ) -> None:
     initial_by_task = {row["task_id"]: row for row in pipeline_initial}
-    refined_by_task = {row["task_id"]: row for row in pipeline_refined}
     original = normalize_legacy_replay(initial_by_task["task0003"])
     refined = normalize_legacy_replay(false_positive)
     original_trajectory = original["trajectory"]
@@ -552,28 +690,47 @@ def render_verifier_case(
     (compact_dir / "deterministic_verifier_false_positive.json").unlink(
         missing_ok=True
     )
-    for legacy_image in assets.glob("step-*.png"):
-        legacy_image.unlink()
+    for pattern in (
+        "step-*",
+        "original-step-*",
+        "refined-step-*",
+        "original-trajectory.gif",
+        "refined-trajectory.gif",
+    ):
+        for generated in assets.glob(pattern):
+            generated.unlink()
     prompt = str((refined_trajectory.get("scenario") or {}).get("instruction") or "")
     if not prompt:
         prompt = text_content(
             first_task_message(refined_trajectory).get("content") or (), limit=100_000
         )
 
-    original_image_paths = collect_checkpoints(
+    original_image_paths = collect_observation_images(
         original_trajectory,
-        [int(step.get("index") or 0) for step in original_trajectory.get("steps") or ()],
         assets,
         prefix="original-",
     )
-    refined_image_paths = collect_checkpoints(
+    refined_image_paths = collect_observation_images(
         refined_trajectory,
-        [int(step.get("index") or 0) for step in refined_trajectory.get("steps") or ()],
         assets,
         prefix="refined-",
     )
+    original_animation = fade_animation(
+        original_image_paths,
+        assets,
+        "original-trajectory.gif",
+        stage="Original",
+        speed=1.3,
+    )
+    refined_animation = fade_animation(
+        refined_image_paths,
+        assets,
+        "refined-trajectory.gif",
+        stage="Refined",
+        speed=1.3,
+    )
     compact = {
-        "format": "dataflow-mm-agent-showcase-refine-pair-v1",
+        "format": "dataflow-mm-agent-showcase-refine-pair-v2",
         "task_id": refined.get("task_id"),
         "env_id": refined.get("env_id"),
         "task_prompt": prompt,
@@ -581,31 +738,18 @@ def render_verifier_case(
             original,
             prompt=prompt,
             slug="deterministic_verifier",
-            checkpoint_paths=original_image_paths,
+            observation_paths=original_image_paths,
         ),
         "refined": compact_trajectory(
             refined,
             prompt=prompt,
             slug="deterministic_verifier",
-            checkpoint_paths=refined_image_paths,
+            observation_paths=refined_image_paths,
         ),
     }
     (compact_dir / "deterministic_verifier_refine_pair.json").write_text(
         json.dumps(compact, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-
-    pipeline_lines = []
-    for task_id in sorted(initial_by_task):
-        initial = initial_by_task[task_id]
-        repaired = refined_by_task.get(task_id)
-        chosen = repaired or initial
-        chosen_verifier = legacy_verifier(chosen)
-        branch = "refined" if repaired else "initial"
-        pipeline_lines.append(
-            f"| `{task_id}` | {branch} | {len(chosen['trajectory'].get('steps') or ())} | "
-            f"{'passed' if chosen_verifier.get('passed') else 'failed / not run'} | "
-            f"{float(chosen.get('traj_overall') or 0.0):.2f} |"
-        )
 
     original_verifier = legacy_verifier(original)
     refined_verifier = legacy_verifier(refined)
@@ -622,6 +766,9 @@ def render_verifier_case(
         "> **Refine comparison:** this case shows the complete original trajectory "
         "and the complete refined trajectory. The refined rollout improved the VLM "
         "Judge score, but deterministic replay still rejected its exact final state.",
+        "",
+        "> **Complete trajectory imagery:** each animation includes every rendered "
+        "observation in order, and every original image remains attached to its tool call.",
         "",
         "A VLM Judge evaluates whether a trajectory looks coherent and complete. It is "
         "not the source of truth for hidden or exact environment state.",
@@ -651,8 +798,9 @@ def render_verifier_case(
     lines.extend(trajectory_stage_lines(
         original,
         slug="deterministic_verifier",
-        checkpoint_paths=original_image_paths,
+        observation_paths=original_image_paths,
         stage="Original",
+        animation=original_animation,
     ))
     lines.extend([
         "## Why Refine ran",
@@ -663,8 +811,9 @@ def render_verifier_case(
     lines.extend(trajectory_stage_lines(
         refined,
         slug="deterministic_verifier",
-        checkpoint_paths=refined_image_paths,
+        observation_paths=refined_image_paths,
         stage="Refined",
+        animation=refined_animation,
     ))
     lines.extend([
         "## What deterministic replay found",
@@ -676,12 +825,6 @@ def render_verifier_case(
         "positive.",
         "",
         f"Exact checks: {check_text or 'see paired trajectory JSON'}.",
-        "",
-        "## Full pipeline selection summary",
-        "",
-        "| Task | Selected branch | Steps | Verifier | Judge |",
-        "| --- | --- | ---: | --- | ---: |",
-        *pipeline_lines,
         "",
         "## Takeaway",
         "",
@@ -705,7 +848,6 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--output-dir", type=Path, required=True)
     value.add_argument("--false-positive", type=Path, required=True)
     value.add_argument("--pipeline-initial", type=Path, required=True)
-    value.add_argument("--pipeline-refined", type=Path, required=True)
     value.add_argument(
         "--refine-original",
         type=Path,
@@ -758,7 +900,6 @@ def main() -> int:
     render_verifier_case(
         false_positive,
         load_jsonl(args.pipeline_initial),
-        load_jsonl(args.pipeline_refined),
         args.output_dir,
     )
     return 0

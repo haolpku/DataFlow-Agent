@@ -1,5 +1,5 @@
 {
-  "format": "dataflow-mm-agent-showcase-refine-pair-v1",
+  "format": "dataflow-mm-agent-showcase-refine-pair-v2",
   "task_id": "task0003",
   "env_id": "pixel_game",
   "task_prompt": "完成画面中的网格任务：收集全部宝石，然后让 BOT 返回 START。可以使用 observe 查看画面、使用 play 移动；只有在实际画面确认已无剩余宝石且 BOT 已回到 START 后才能调用 finish。请使用中文进行简要推理并给出最终回答；工具名、方向枚举和 JSON 键保持英文。",
@@ -23,7 +23,7 @@
         "is_final": null,
         "elapsed_ms": 16280.5822435766,
         "observation_text": "Moved 4 step(s) right. Collected 1/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/original-step-001-01.png"
         ]
       },
@@ -42,7 +42,7 @@
         "is_final": null,
         "elapsed_ms": 3831.9442551583,
         "observation_text": "Moved 1 step(s) right. Collected 2/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/original-step-002-01.png"
         ]
       },
@@ -61,7 +61,7 @@
         "is_final": null,
         "elapsed_ms": 5100.0091526657,
         "observation_text": "Moved 1 step(s) down. Collected 2/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/original-step-003-01.png"
         ]
       },
@@ -80,7 +80,7 @@
         "is_final": null,
         "elapsed_ms": 4882.151812315,
         "observation_text": "Moved 0 step(s) down. Collected 2/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/original-step-004-01.png"
         ]
       },
@@ -99,7 +99,7 @@
         "is_final": null,
         "elapsed_ms": 7636.8530541658,
         "observation_text": "Moved 2 step(s) right. Collected 2/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/original-step-005-01.png"
         ]
       },
@@ -118,7 +118,7 @@
         "is_final": null,
         "elapsed_ms": 4051.5466127545,
         "observation_text": "Moved 1 step(s) down. Collected 3/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/original-step-006-01.png"
         ]
       },
@@ -137,7 +137,7 @@
         "is_final": null,
         "elapsed_ms": 8491.9542800635,
         "observation_text": "Moved 1 step(s) left. Collected 3/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/original-step-007-01.png"
         ]
       },
@@ -156,7 +156,7 @@
         "is_final": null,
         "elapsed_ms": 6562.1893759817,
         "observation_text": "Moved 2 step(s) up. Collected 3/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/original-step-008-01.png"
         ]
       }
@@ -204,7 +204,7 @@
         "is_final": null,
         "elapsed_ms": 60061.2438619137,
         "observation_text": "Moved 5 step(s) right. Collected 2/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/refined-step-001-01.png"
         ]
       },
@@ -223,7 +223,7 @@
         "is_final": null,
         "elapsed_ms": 7239.8753557354,
         "observation_text": "Moved 2 step(s) right. Collected 2/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/refined-step-002-01.png"
         ]
       },
@@ -242,7 +242,7 @@
         "is_final": null,
         "elapsed_ms": 9754.5355893672,
         "observation_text": "Moved 4 step(s) down. Collected 3/3.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/deterministic_verifier/refined-step-003-01.png"
         ]
       },
@@ -260,7 +260,7 @@
         "is_final": null,
         "elapsed_ms": 6790.8953856677,
         "observation_text": "",
-        "checkpoint_images": []
+        "observation_images": []
       }
     ],
     "final_answer": "任务完成：成功收集全部3颗宝石，BOT已返回START位置。共移动11步。",

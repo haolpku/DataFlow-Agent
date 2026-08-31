@@ -2,6 +2,8 @@
 
 [← All showcases](README.md)
 
+> **Complete trajectory imagery:** the animation is a compressed overview of every rendered observation. Every original image is also preserved inside its corresponding tool-call section.
+
 The agent synthesizes two incident-runbook pages into one operational flow, observes a legibility problem, and repairs the affected nodes.
 
 | Env | Task | Branch | Steps | ReplayVerify | Judge |
@@ -25,16 +27,7 @@ The agent synthesizes two incident-runbook pages into one operational flow, obse
 
 ## Visual checkpoints
 
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="assets/diagram/step-001-01.png" alt="Step 1"><br><sub>Step 1</sub></td>
-    <td align="center" width="50%"><img src="assets/diagram/step-004-01.png" alt="Step 4"><br><sub>Step 4</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/diagram/step-005-01.png" alt="Step 5"><br><sub>Step 5</sub></td>
-    <td align="center" width="50%"><img src="assets/diagram/step-006-01.png" alt="Step 6"><br><sub>Step 6</sub></td>
-  </tr>
-</table>
+<p align="center"><img src="assets/diagram/trajectory.gif" alt="Full trajectory — every rendered observation in chronological order"><br><sub>Full trajectory — every rendered observation in chronological order</sub></p>
 
 ## Trajectory
 
@@ -607,6 +600,8 @@ Add nodes for the diagram.
 **Observation**
 
 <pre><code>Added 24 node(s). nodes=24, edges=0, saved=False. Layout diagnostics: {&quot;overlap_pairs&quot;: [], &quot;out_of_bounds&quot;: [], &quot;dangling_edges&quot;: [], &quot;valid_layout&quot;: true}</code></pre>
+
+![step 3 observation](assets/diagram/step-003-01.png)
 
 </details>
 

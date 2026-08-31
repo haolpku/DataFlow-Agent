@@ -1,5 +1,5 @@
 {
-  "format": "dataflow-mm-agent-showcase-compact-v1",
+  "format": "dataflow-mm-agent-showcase-compact-v2",
   "task_id": "task0003",
   "env_id": "diagram",
   "task_prompt": "附件是《Lighthouse Incident Response Runbook 3.2》的两页摘录。请把其中分散的信息转成一张值班人员可直接使用的单页、可编辑流程图，而不是照抄文档版式。图中应清楚表达从信号发现到关闭事件的主流程、何时判定为非事件、SEV-1/SEV-2 的通知分支、回滚失败后的隔离与故障转移，以及每次交接必须留下的证据；三类核心角色也要在相应阶段有明确归属。读者应能从连线方向和视觉分组中快速理解正常路径与升级路径，关键步骤、角色和证据必须完整可读，不能用省略号代替。完成后检查图的可读性，并保存 Draw.io 源文件和 PNG 预览。",
@@ -24,7 +24,7 @@
       "is_final": false,
       "elapsed_ms": 7137.3626608402,
       "observation_text": "Created an empty diagram. nodes=0, edges=0, saved=False. Layout diagnostics: {\"overlap_pairs\": [], \"out_of_bounds\": [], \"dangling_edges\": [], \"valid_layout\": true}",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/diagram/step-001-01.png"
       ]
     },
@@ -296,7 +296,7 @@
       "is_final": false,
       "elapsed_ms": 15353.3304557204,
       "observation_text": "ERROR [invalid_arguments]: 'SEV-2 Branch [Comms Lead]\\nNotify internal stakeholders; public update ONLY if customer impact visible' is too long",
-      "checkpoint_images": []
+      "observation_images": []
     },
     {
       "index": 3,
@@ -566,7 +566,9 @@
       "is_final": false,
       "elapsed_ms": 10525.2594426274,
       "observation_text": "Added 24 node(s). nodes=24, edges=0, saved=False. Layout diagnostics: {\"overlap_pairs\": [], \"out_of_bounds\": [], \"dangling_edges\": [], \"valid_layout\": true}",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/diagram/step-003-01.png"
+      ]
     },
     {
       "index": 4,
@@ -667,7 +669,7 @@
       "is_final": false,
       "elapsed_ms": 9376.4955494553,
       "observation_text": "Added 12 directed edge(s). nodes=24, edges=12, saved=False. Layout diagnostics: {\"overlap_pairs\": [], \"out_of_bounds\": [], \"dangling_edges\": [], \"valid_layout\": true}",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/diagram/step-004-01.png"
       ]
     },
@@ -698,7 +700,7 @@
       "is_final": false,
       "elapsed_ms": 9398.0267960578,
       "observation_text": "Updated 2 cell(s): seq_validate, seq_verify. nodes=24, edges=12, saved=False. Layout diagnostics: {\"overlap_pairs\": [], \"out_of_bounds\": [], \"dangling_edges\": [], \"valid_layout\": true}",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/diagram/step-005-01.png"
       ]
     },
@@ -714,7 +716,7 @@
       "is_final": false,
       "elapsed_ms": 5020.8694990724,
       "observation_text": "Saved and validated diagram.drawio=13235 bytes, diagram.svg=12161 bytes, diagram.png=179445 bytes. nodes=24, edges=12, saved=True. Layout diagnostics: {\"overlap_pairs\": [], \"out_of_bounds\": [], \"dangling_edges\": [], \"valid_layout\": true}",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/diagram/step-006-01.png"
       ]
     },
@@ -732,7 +734,7 @@
       "is_final": true,
       "elapsed_ms": 14009.9132023752,
       "observation_text": "",
-      "checkpoint_images": []
+      "observation_images": []
     }
   ],
   "final_answer": "已将《Lighthouse Incident Response Runbook 3.2》整合并转换为单页、可编辑且结构清晰的事件响应流程图。\n\n### 图表设计要点与结构：\n1. **主流程 (Primary Sequence)**: 位于中央，按顺序包含 `01. DETECT` -> `02. VALIDATE` -> `03. DECLARE` -> `04. CONTAIN` -> `05. RECOVER` -> `06. VERIFY` -> `07. CLOSE` 完整的生命周期。\n2. **信号触发与判定 (Triggers & Non-Incident)**:\n   - 左侧汇总三大触发条件（网关错误预算消耗、支付授权成功率下降、多区域用户反馈）。\n   - 在 `02. VALIDATE` 阶段如果“影响未确认”，分支转向右侧 `NO INCIDENT` 并要求附上证据关闭。\n3. **通知与升级分支 (SEV-1 / SEV-2 Branches)**:\n   - 在 `03. DECLARE` 阶段区分 SEV-1（Call Executive & 发布公开更新）与 SEV-2（通知内部干系人；仅当影响可见时发布公开更新）分支路径。\n4. **隔离与故障转移 (Containment & Escalation)**:\n   - 在 `04. CONTAIN` 阶段引入“Rollback Fails”处理分支：隔离受影响区域并进行流量故障转移 (Failover)。\n5. **验证与反馈循环 (Verification & Loop)**:\n   - `06. VERIFY` 强调必须连续 15 分钟指标达标；若验证失败，通过红色虚线反馈回路返回 `04. CONTAIN` 重新处置。\n6. **角色归属与证据要求 (Roles & Evidence Checklist)**:\n   - 左侧明确标注三类核心角色（Incident Commander, Operations Lead, Communications Lead）的权责，并在主流程各节点直接标明负责角色。\n   - 左下角突出“每次交接必须留下的证据”清单（Owner + Timestamp, Metric/Customer proof, Decision + Next check time）。\n\n源文件 (`diagram.drawio`) 及预览图 (`diagram.png`, `diagram.svg`) 已成功保存至工作区。",

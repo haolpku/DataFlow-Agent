@@ -1,5 +1,5 @@
 {
-  "format": "dataflow-mm-agent-showcase-refine-pair-v1",
+  "format": "dataflow-mm-agent-showcase-refine-pair-v2",
   "task_id": "task0019",
   "env_id": "pptx",
   "task_prompt": "附件依次是 Northstar 董事会经营简报的三页参考图。请将它们复刻为一份 16:9、三页、可编辑的 PowerPoint：忠实保留每页的信息、视觉层级、版式关系、配色和页码，并让整套演示在投影时仍然清晰。不要把参考图整页作为背景或单张图片铺入；标题、数据、卡片、图形和流程内容都应尽可能保持可编辑。完成后检查整套页面的渲染效果，并保存为 northstar_board_update.pptx。",
@@ -23,7 +23,7 @@
         "is_final": false,
         "elapsed_ms": 7928.6322724074,
         "observation_text": "{\"aspect_ratio\": \"16:9\", \"message\": \"Created 16:9 presentation presentation_1\", \"presentation_id\": \"presentation_1\", \"slide_count\": 0}",
-        "checkpoint_images": []
+        "observation_images": []
       },
       {
         "index": 2,
@@ -48,7 +48,9 @@
         "is_final": false,
         "elapsed_ms": 12384.5857959241,
         "observation_text": "{\"gradient_direction\": \"horizontal\", \"layout_name\": \"Blank\", \"message\": \"Added slide 0 with layout 6\", \"slide_index\": 0}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-002-01.png"
+        ]
       },
       {
         "index": 3,
@@ -79,7 +81,9 @@
         "is_final": false,
         "elapsed_ms": 12828.3275756985,
         "observation_text": "{\"message\": \"Added text box to slide 0\", \"shape_index\": 0, \"text\": \"NORTHSTAR / BOARD UPDATE\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-003-01.png"
+        ]
       },
       {
         "index": 4,
@@ -110,7 +114,9 @@
         "is_final": false,
         "elapsed_ms": 7050.8815106004,
         "observation_text": "{\"message\": \"Added text box to slide 0\", \"shape_index\": 1, \"text\": \"Q2\\nA sharper path\\nto durable growth.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-004-01.png"
+        ]
       },
       {
         "index": 5,
@@ -141,7 +147,9 @@
         "is_final": false,
         "elapsed_ms": 9950.1258190721,
         "observation_text": "{\"message\": \"Formatted text shape 1\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-005-01.png"
+        ]
       },
       {
         "index": 6,
@@ -172,7 +180,9 @@
         "is_final": false,
         "elapsed_ms": 18760.0673697889,
         "observation_text": "{\"message\": \"Formatted text shape 1\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-006-01.png"
+        ]
       },
       {
         "index": 7,
@@ -203,7 +213,9 @@
         "is_final": false,
         "elapsed_ms": 5926.965713501,
         "observation_text": "{\"message\": \"Formatted text shape 1\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-007-01.png"
+        ]
       },
       {
         "index": 8,
@@ -220,7 +232,7 @@
         "is_final": false,
         "elapsed_ms": 4654.6411309391,
         "observation_text": "{\"connector_count\": 0, \"has_charts\": false, \"has_tables\": false, \"layout_name\": \"Blank\", \"semantic_elements\": [{\"height\": 0.5, \"left\": 0.8, \"text\": \"NORTHSTAR / BOARD UPDATE\", \"top\": 0.8, \"width\": 5.0}, {\"height\": 2.5, \"left\": 0.8, \"text\": \"Q2\\nA sharper path\\nto durable growth.\", \"top\": 2.0, \"width\": 7.0}], \"semantic_text\": [\"NORTHSTAR / BOARD UPDATE\", \"Q2\\nA sharper path\\nto durable growth.\"], \"shape_count\": 2, \"shapes\": [{\"has_chart\": false, \"has_table\": false, \"has_text\": true, \"height\": 0.5, \"index\": 0, \"left\": 0.8, \"name\": \"TextBox 1\", \"shape_type\": \"TEXT_BOX (17)\", \"text\": \"NORTHSTAR / BOARD UPDATE\", \"top\": 0.8, \"width\": 5.0}, {\"has_chart\": false, \"has_table\": false, \"has_text\": true, \"height\": 2.5, \"index\": 1, \"left\": 0.8, \"name\": \"TextBox 2\", \"shape_type\": \"TEXT_BOX (17)\", \"text\": \"Q2\\nA sharper path\\nto durable growth.\", \"top\": 2.0, \"width\": 7.0}], \"slide_index\": 0, \"text\": [\"NORTHSTAR / BOARD UPDATE\", \"Q2\\nA sharper path\\nto durable growth.\"], \"title\": null, \"transition\": {\"duration_seconds\": null, \"has_transition\": false, \"transition_type\": null}}",
-        "checkpoint_images": []
+        "observation_images": []
       },
       {
         "index": 9,
@@ -261,7 +273,9 @@
         "is_final": false,
         "elapsed_ms": 28090.4977023602,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 1}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-009-01.png"
+        ]
       },
       {
         "index": 10,
@@ -292,7 +306,9 @@
         "is_final": false,
         "elapsed_ms": 26965.9517891705,
         "observation_text": "{\"message\": \"Added text box to slide 0\", \"shape_index\": 2, \"text\": \"Executive operating review\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-010-01.png"
+        ]
       },
       {
         "index": 11,
@@ -332,7 +348,9 @@
         "is_final": false,
         "elapsed_ms": 16634.7319334745,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 3}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-011-01.png"
+        ]
       },
       {
         "index": 12,
@@ -363,7 +381,9 @@
         "is_final": false,
         "elapsed_ms": 4927.7332406491,
         "observation_text": "{\"message\": \"Added text box to slide 0\", \"shape_index\": 4, \"text\": \"JUNE 2026   |   SAN FRANCISCO\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-012-01.png"
+        ]
       },
       {
         "index": 13,
@@ -394,7 +414,7 @@
         "is_final": false,
         "elapsed_ms": 5545.1464559883,
         "observation_text": "{\"message\": \"Added text box to slide 0\", \"shape_index\": 5, \"text\": \"01\"}",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/pptx/original-step-013-01.png"
         ]
       },
@@ -424,7 +444,7 @@
         "is_final": false,
         "elapsed_ms": 11074.7371446341,
         "observation_text": "ERROR [invalid_arguments]: top must be non-negative",
-        "checkpoint_images": []
+        "observation_images": []
       },
       {
         "index": 15,
@@ -452,7 +472,9 @@
         "is_final": false,
         "elapsed_ms": 6567.2351550311,
         "observation_text": "{\"message\": \"Added oval shape\", \"shape_index\": 6}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-015-01.png"
+        ]
       },
       {
         "index": 16,
@@ -480,7 +502,9 @@
         "is_final": false,
         "elapsed_ms": 17821.4564621449,
         "observation_text": "{\"connector_type\": \"straight\", \"end_point\": [13.33, 4.0], \"message\": \"Added straight connector\", \"shape_index\": 7, \"start_point\": [8.8, 0.0]}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-016-01.png"
+        ]
       },
       {
         "index": 17,
@@ -505,7 +529,9 @@
         "is_final": false,
         "elapsed_ms": 5170.4700309783,
         "observation_text": "{\"gradient_direction\": \"horizontal\", \"layout_name\": \"Blank\", \"message\": \"Added slide 1 with layout 6\", \"slide_index\": 1}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-017-01.png"
+        ]
       },
       {
         "index": 18,
@@ -536,7 +562,9 @@
         "is_final": false,
         "elapsed_ms": 18736.8425317109,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 0, \"text\": \"Q2 EXECUTIVE PULSE\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-018-01.png"
+        ]
       },
       {
         "index": 19,
@@ -559,7 +587,9 @@
         "is_final": false,
         "elapsed_ms": 6263.2689010352,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 1, \"text\": \"Growth is strong.\\nActivation is the constraint.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-019-01.png"
+        ]
       },
       {
         "index": 20,
@@ -600,7 +630,9 @@
         "is_final": false,
         "elapsed_ms": 6562.3436067253,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 1}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-020-01.png"
+        ]
       },
       {
         "index": 21,
@@ -627,7 +659,9 @@
         "is_final": false,
         "elapsed_ms": 17898.2640169561,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 2}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-021-01.png"
+        ]
       },
       {
         "index": 22,
@@ -650,7 +684,9 @@
         "is_final": false,
         "elapsed_ms": 15622.6042117923,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 3, \"text\": \"ARR\\n$42.8M\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-022-01.png"
+        ]
       },
       {
         "index": 23,
@@ -691,7 +727,9 @@
         "is_final": false,
         "elapsed_ms": 9572.8081837296,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 3}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-023-01.png"
+        ]
       },
       {
         "index": 24,
@@ -725,7 +763,9 @@
         "is_final": false,
         "elapsed_ms": 28703.3875677735,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 4}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-024-01.png"
+        ]
       },
       {
         "index": 25,
@@ -752,7 +792,9 @@
         "is_final": false,
         "elapsed_ms": 16082.4339576066,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 5}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-025-01.png"
+        ]
       },
       {
         "index": 26,
@@ -775,7 +817,9 @@
         "is_final": false,
         "elapsed_ms": 21220.6998560578,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 6, \"text\": \"NET REVENUE RETENTION\\n118%\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-026-01.png"
+        ]
       },
       {
         "index": 27,
@@ -816,7 +860,9 @@
         "is_final": false,
         "elapsed_ms": 5343.8019119203,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 6}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-027-01.png"
+        ]
       },
       {
         "index": 28,
@@ -850,7 +896,9 @@
         "is_final": false,
         "elapsed_ms": 17120.2102899551,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 7}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-028-01.png"
+        ]
       },
       {
         "index": 29,
@@ -877,7 +925,9 @@
         "is_final": false,
         "elapsed_ms": 8934.6849154681,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 8}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-029-01.png"
+        ]
       },
       {
         "index": 30,
@@ -900,7 +950,9 @@
         "is_final": false,
         "elapsed_ms": 7691.3672573864,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 9, \"text\": \"GROSS MARGIN\\n76%\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-030-01.png"
+        ]
       },
       {
         "index": 31,
@@ -941,7 +993,9 @@
         "is_final": false,
         "elapsed_ms": 9944.2154020071,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 9}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-031-01.png"
+        ]
       },
       {
         "index": 32,
@@ -975,7 +1029,9 @@
         "is_final": false,
         "elapsed_ms": 9058.788895607,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 10}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-032-01.png"
+        ]
       },
       {
         "index": 33,
@@ -1002,7 +1058,9 @@
         "is_final": false,
         "elapsed_ms": 18613.005856052,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 11}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-033-01.png"
+        ]
       },
       {
         "index": 34,
@@ -1025,7 +1083,9 @@
         "is_final": false,
         "elapsed_ms": 6464.0857521445,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 12, \"text\": \"7-DAY ACTIVATION\\n61%\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-034-01.png"
+        ]
       },
       {
         "index": 35,
@@ -1066,7 +1126,9 @@
         "is_final": false,
         "elapsed_ms": 21322.8630237281,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 12}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-035-01.png"
+        ]
       },
       {
         "index": 36,
@@ -1100,7 +1162,9 @@
         "is_final": false,
         "elapsed_ms": 12029.9120806158,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 13}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-036-01.png"
+        ]
       },
       {
         "index": 37,
@@ -1131,7 +1195,9 @@
         "is_final": false,
         "elapsed_ms": 16086.8255998939,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 14, \"text\": \"ACTIVATION FUNNEL\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-037-01.png"
+        ]
       },
       {
         "index": 38,
@@ -1165,7 +1231,9 @@
         "is_final": false,
         "elapsed_ms": 13344.6508385241,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 15}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-038-01.png"
+        ]
       },
       {
         "index": 39,
@@ -1199,7 +1267,9 @@
         "is_final": false,
         "elapsed_ms": 9852.9594596475,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 16}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-039-01.png"
+        ]
       },
       {
         "index": 40,
@@ -1233,7 +1303,9 @@
         "is_final": false,
         "elapsed_ms": 17178.512185812,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 17}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-040-01.png"
+        ]
       },
       {
         "index": 41,
@@ -1267,7 +1339,9 @@
         "is_final": false,
         "elapsed_ms": 5360.9959837049,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 18}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-041-01.png"
+        ]
       },
       {
         "index": 42,
@@ -1300,7 +1374,9 @@
         "is_final": false,
         "elapsed_ms": 6170.027365908,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 19}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-042-01.png"
+        ]
       },
       {
         "index": 43,
@@ -1323,7 +1399,9 @@
         "is_final": false,
         "elapsed_ms": 5189.0317052603,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 20, \"text\": \"BOARD READOUT\\n\\n35%\\n\\nof sign-ups never connect\\na data source — the\\nlargest controllable leak.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-043-01.png"
+        ]
       },
       {
         "index": 44,
@@ -1374,7 +1452,9 @@
         "is_final": false,
         "elapsed_ms": 28236.3206073642,
         "observation_text": "{\"message\": \"Formatted 3 text runs\", \"shape_index\": 20}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-044-01.png"
+        ]
       },
       {
         "index": 45,
@@ -1405,7 +1485,7 @@
         "is_final": false,
         "elapsed_ms": 5673.8168224692,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 21, \"text\": \"02\"}",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/pptx/original-step-045-01.png"
         ]
       },
@@ -1432,7 +1512,9 @@
         "is_final": false,
         "elapsed_ms": 5419.5703286678,
         "observation_text": "{\"gradient_direction\": \"horizontal\", \"layout_name\": \"Blank\", \"message\": \"Added slide 2 with layout 6\", \"slide_index\": 2}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-046-01.png"
+        ]
       },
       {
         "index": 47,
@@ -1463,7 +1545,9 @@
         "is_final": false,
         "elapsed_ms": 14458.5979990661,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 0, \"text\": \"THE NEXT 90 DAYS\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-047-01.png"
+        ]
       },
       {
         "index": 48,
@@ -1486,7 +1570,9 @@
         "is_final": false,
         "elapsed_ms": 15580.8772966266,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 1, \"text\": \"A focused path to \\n70% activation.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-048-01.png"
+        ]
       },
       {
         "index": 49,
@@ -1527,7 +1613,9 @@
         "is_final": false,
         "elapsed_ms": 5611.9359638542,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 1}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-049-01.png"
+        ]
       },
       {
         "index": 50,
@@ -1560,7 +1648,9 @@
         "is_final": false,
         "elapsed_ms": 14058.6805641651,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 2}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-050-01.png"
+        ]
       },
       {
         "index": 51,
@@ -1594,7 +1684,9 @@
         "is_final": false,
         "elapsed_ms": 5357.7858712524,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 3}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-051-01.png"
+        ]
       },
       {
         "index": 52,
@@ -1617,7 +1709,9 @@
         "is_final": false,
         "elapsed_ms": 15273.5327705741,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 4, \"text\": \"Instrument\\nWEEKS 1-3\\n\\nFind the three moments where\\nsetup breaks.\\n\\n•  Event taxonomy\\n•  Journey replay\\n•  Owner baseline\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-052-01.png"
+        ]
       },
       {
         "index": 53,
@@ -1728,7 +1822,9 @@
         "is_final": false,
         "elapsed_ms": 8192.9813120514,
         "observation_text": "{\"message\": \"Formatted 9 text runs\", \"shape_index\": 4}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-053-01.png"
+        ]
       },
       {
         "index": 54,
@@ -1761,7 +1857,9 @@
         "is_final": false,
         "elapsed_ms": 7652.5509357452,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 5}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-054-01.png"
+        ]
       },
       {
         "index": 55,
@@ -1795,7 +1893,9 @@
         "is_final": false,
         "elapsed_ms": 8184.072220698,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 6}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-055-01.png"
+        ]
       },
       {
         "index": 56,
@@ -1818,7 +1918,9 @@
         "is_final": false,
         "elapsed_ms": 8833.3877101541,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 7, \"text\": \"Remove friction\\nWEEKS 4-8\\n\\nShip the smallest changes that\\nunblock first value.\\n\\n•  Guided connector\\n•  Role presets\\n•  Recovery states\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-056-01.png"
+        ]
       },
       {
         "index": 57,
@@ -1929,7 +2031,9 @@
         "is_final": false,
         "elapsed_ms": 5862.6958578825,
         "observation_text": "{\"message\": \"Formatted 9 text runs\", \"shape_index\": 7}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-057-01.png"
+        ]
       },
       {
         "index": 58,
@@ -1962,7 +2066,9 @@
         "is_final": false,
         "elapsed_ms": 10298.7440917641,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 8}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-058-01.png"
+        ]
       },
       {
         "index": 59,
@@ -1996,7 +2102,9 @@
         "is_final": false,
         "elapsed_ms": 14946.2289307266,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 9}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-059-01.png"
+        ]
       },
       {
         "index": 60,
@@ -2019,7 +2127,9 @@
         "is_final": false,
         "elapsed_ms": 6474.90000166,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 10, \"text\": \"Scale the win\\nWEEKS 9-12\\n\\nStandardize the loop and expand\\nby segment.\\n\\n•  Lifecycle prompts\\n•  CS playbook\\n•  Weekly scorecard\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-060-01.png"
+        ]
       },
       {
         "index": 61,
@@ -2130,7 +2240,9 @@
         "is_final": false,
         "elapsed_ms": 7043.8575204462,
         "observation_text": "{\"message\": \"Formatted 9 text runs\", \"shape_index\": 10}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-061-01.png"
+        ]
       },
       {
         "index": 62,
@@ -2157,7 +2269,9 @@
         "is_final": false,
         "elapsed_ms": 26964.8626167327,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 11}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-062-01.png"
+        ]
       },
       {
         "index": 63,
@@ -2180,7 +2294,9 @@
         "is_final": false,
         "elapsed_ms": 25881.6381786019,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 12, \"text\": \"DECISION TODAY         Fund one activation squad for 90 days; review progress every Friday.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/original-step-063-01.png"
+        ]
       },
       {
         "index": 64,
@@ -2221,7 +2337,7 @@
         "is_final": false,
         "elapsed_ms": 9640.2295622975,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 12}",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/pptx/original-step-064-01.png"
         ]
       }
@@ -2265,7 +2381,7 @@
         "is_final": false,
         "elapsed_ms": 11532.8516867012,
         "observation_text": "{\"aspect_ratio\": \"16:9\", \"message\": \"Created 16:9 presentation presentation_1\", \"presentation_id\": \"presentation_1\", \"slide_count\": 0}",
-        "checkpoint_images": []
+        "observation_images": []
       },
       {
         "index": 2,
@@ -2290,7 +2406,9 @@
         "is_final": false,
         "elapsed_ms": 10988.4388204664,
         "observation_text": "{\"gradient_direction\": \"horizontal\", \"layout_name\": \"Blank\", \"message\": \"Added slide 0 with layout 6\", \"slide_index\": 0}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-002-01.png"
+        ]
       },
       {
         "index": 3,
@@ -2321,7 +2439,9 @@
         "is_final": false,
         "elapsed_ms": 15456.1441931874,
         "observation_text": "{\"message\": \"Added text box to slide 0\", \"shape_index\": 0, \"text\": \"NORTHSTAR / BOARD UPDATE\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-003-01.png"
+        ]
       },
       {
         "index": 4,
@@ -2351,7 +2471,9 @@
         "is_final": false,
         "elapsed_ms": 15830.8627326041,
         "observation_text": "{\"message\": \"Added text box to slide 0\", \"shape_index\": 1, \"text\": \"Q2\\nA sharper path\\nto durable growth.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-004-01.png"
+        ]
       },
       {
         "index": 5,
@@ -2392,7 +2514,9 @@
         "is_final": false,
         "elapsed_ms": 7613.414645195,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 1}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-005-01.png"
+        ]
       },
       {
         "index": 6,
@@ -2422,7 +2546,9 @@
         "is_final": false,
         "elapsed_ms": 35616.7000960559,
         "observation_text": "{\"message\": \"Added text box to slide 0\", \"shape_index\": 2, \"text\": \"Executive operating review\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-006-01.png"
+        ]
       },
       {
         "index": 7,
@@ -2462,7 +2588,9 @@
         "is_final": false,
         "elapsed_ms": 21193.2147908956,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 3}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-007-01.png"
+        ]
       },
       {
         "index": 8,
@@ -2493,7 +2621,9 @@
         "is_final": false,
         "elapsed_ms": 5741.5726408362,
         "observation_text": "{\"message\": \"Added text box to slide 0\", \"shape_index\": 4, \"text\": \"01\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-008-01.png"
+        ]
       },
       {
         "index": 9,
@@ -2518,7 +2648,9 @@
         "is_final": false,
         "elapsed_ms": 8474.4250662625,
         "observation_text": "{\"gradient_direction\": \"horizontal\", \"layout_name\": \"Blank\", \"message\": \"Added slide 1 with layout 6\", \"slide_index\": 1}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-009-01.png"
+        ]
       },
       {
         "index": 10,
@@ -2549,7 +2681,9 @@
         "is_final": false,
         "elapsed_ms": 30455.7883087546,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 0, \"text\": \"Q2 EXECUTIVE PULSE\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-010-01.png"
+        ]
       },
       {
         "index": 11,
@@ -2579,7 +2713,9 @@
         "is_final": false,
         "elapsed_ms": 21145.7699947059,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 1, \"text\": \"Growth is strong.\\nActivation is the constraint.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-011-01.png"
+        ]
       },
       {
         "index": 12,
@@ -2620,7 +2756,9 @@
         "is_final": false,
         "elapsed_ms": 23754.8979986459,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 1}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-012-01.png"
+        ]
       },
       {
         "index": 13,
@@ -2647,7 +2785,9 @@
         "is_final": false,
         "elapsed_ms": 14092.8939897567,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 2}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-013-01.png"
+        ]
       },
       {
         "index": 14,
@@ -2678,7 +2818,9 @@
         "is_final": false,
         "elapsed_ms": 18523.8483697176,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 3, \"text\": \"ARR\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-014-01.png"
+        ]
       },
       {
         "index": 15,
@@ -2709,7 +2851,9 @@
         "is_final": false,
         "elapsed_ms": 7572.064826265,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 4, \"text\": \"$42.8M\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-015-01.png"
+        ]
       },
       {
         "index": 16,
@@ -2743,7 +2887,9 @@
         "is_final": false,
         "elapsed_ms": 16546.2829563767,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 5}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-016-01.png"
+        ]
       },
       {
         "index": 17,
@@ -2770,7 +2916,9 @@
         "is_final": false,
         "elapsed_ms": 15481.9053970277,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 6}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-017-01.png"
+        ]
       },
       {
         "index": 18,
@@ -2801,7 +2949,9 @@
         "is_final": false,
         "elapsed_ms": 6476.7305720598,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 7, \"text\": \"NET REVENUE RETENTION\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-018-01.png"
+        ]
       },
       {
         "index": 19,
@@ -2832,7 +2982,9 @@
         "is_final": false,
         "elapsed_ms": 19686.5832284093,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 8, \"text\": \"118%\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-019-01.png"
+        ]
       },
       {
         "index": 20,
@@ -2866,7 +3018,9 @@
         "is_final": false,
         "elapsed_ms": 5571.2104905397,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 9}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-020-01.png"
+        ]
       },
       {
         "index": 21,
@@ -2893,7 +3047,9 @@
         "is_final": false,
         "elapsed_ms": 6582.7413033694,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 10}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-021-01.png"
+        ]
       },
       {
         "index": 22,
@@ -2924,7 +3080,9 @@
         "is_final": false,
         "elapsed_ms": 7037.5041868538,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 11, \"text\": \"GROSS MARGIN\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-022-01.png"
+        ]
       },
       {
         "index": 23,
@@ -2955,7 +3113,9 @@
         "is_final": false,
         "elapsed_ms": 10612.7974521369,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 12, \"text\": \"76%\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-023-01.png"
+        ]
       },
       {
         "index": 24,
@@ -2989,7 +3149,9 @@
         "is_final": false,
         "elapsed_ms": 13559.7468670458,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 13}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-024-01.png"
+        ]
       },
       {
         "index": 25,
@@ -3016,7 +3178,9 @@
         "is_final": false,
         "elapsed_ms": 6452.1221667528,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 14}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-025-01.png"
+        ]
       },
       {
         "index": 26,
@@ -3047,7 +3211,9 @@
         "is_final": false,
         "elapsed_ms": 5313.7802816927,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 15, \"text\": \"7-DAY ACTIVATION\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-026-01.png"
+        ]
       },
       {
         "index": 27,
@@ -3078,7 +3244,9 @@
         "is_final": false,
         "elapsed_ms": 5558.9270386845,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 16, \"text\": \"61%\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-027-01.png"
+        ]
       },
       {
         "index": 28,
@@ -3112,7 +3280,9 @@
         "is_final": false,
         "elapsed_ms": 6899.3565645069,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 17}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-028-01.png"
+        ]
       },
       {
         "index": 29,
@@ -3143,7 +3313,9 @@
         "is_final": false,
         "elapsed_ms": 5699.1695947945,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 18, \"text\": \"ACTIVATION FUNNEL\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-029-01.png"
+        ]
       },
       {
         "index": 30,
@@ -3177,7 +3349,9 @@
         "is_final": false,
         "elapsed_ms": 18095.1337944716,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 19}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-030-01.png"
+        ]
       },
       {
         "index": 31,
@@ -3211,7 +3385,9 @@
         "is_final": false,
         "elapsed_ms": 5576.2822534889,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 20}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-031-01.png"
+        ]
       },
       {
         "index": 32,
@@ -3245,7 +3421,9 @@
         "is_final": false,
         "elapsed_ms": 8275.4781600088,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 21}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-032-01.png"
+        ]
       },
       {
         "index": 33,
@@ -3279,7 +3457,9 @@
         "is_final": false,
         "elapsed_ms": 17365.8177554607,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 22}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-033-01.png"
+        ]
       },
       {
         "index": 34,
@@ -3312,7 +3492,9 @@
         "is_final": false,
         "elapsed_ms": 15420.7213949412,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 23}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-034-01.png"
+        ]
       },
       {
         "index": 35,
@@ -3342,7 +3524,9 @@
         "is_final": false,
         "elapsed_ms": 21705.494415015,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 24, \"text\": \"BOARD READOUT\\n35%\\nof sign-ups never connect\\na data source — the\\nlargest controllable leak.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-035-01.png"
+        ]
       },
       {
         "index": 36,
@@ -3393,7 +3577,9 @@
         "is_final": false,
         "elapsed_ms": 6720.3036192805,
         "observation_text": "{\"message\": \"Formatted 3 text runs\", \"shape_index\": 24}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-036-01.png"
+        ]
       },
       {
         "index": 37,
@@ -3424,7 +3610,9 @@
         "is_final": false,
         "elapsed_ms": 29412.685289979,
         "observation_text": "{\"message\": \"Added text box to slide 1\", \"shape_index\": 25, \"text\": \"02\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-037-01.png"
+        ]
       },
       {
         "index": 38,
@@ -3449,7 +3637,9 @@
         "is_final": false,
         "elapsed_ms": 5790.4551979154,
         "observation_text": "{\"gradient_direction\": \"horizontal\", \"layout_name\": \"Blank\", \"message\": \"Added slide 2 with layout 6\", \"slide_index\": 2}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-038-01.png"
+        ]
       },
       {
         "index": 39,
@@ -3480,7 +3670,9 @@
         "is_final": false,
         "elapsed_ms": 5940.3532706201,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 0, \"text\": \"THE NEXT 90 DAYS\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-039-01.png"
+        ]
       },
       {
         "index": 40,
@@ -3510,7 +3702,9 @@
         "is_final": false,
         "elapsed_ms": 20026.2669157237,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 1, \"text\": \"A focused path to\\n70% activation.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-040-01.png"
+        ]
       },
       {
         "index": 41,
@@ -3551,7 +3745,9 @@
         "is_final": false,
         "elapsed_ms": 6553.7039674819,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 1}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-041-01.png"
+        ]
       },
       {
         "index": 42,
@@ -3584,7 +3780,9 @@
         "is_final": false,
         "elapsed_ms": 6448.1281898916,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 2}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-042-01.png"
+        ]
       },
       {
         "index": 43,
@@ -3617,7 +3815,9 @@
         "is_final": false,
         "elapsed_ms": 6568.1411251426,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 3}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-043-01.png"
+        ]
       },
       {
         "index": 44,
@@ -3650,7 +3850,9 @@
         "is_final": false,
         "elapsed_ms": 7522.9418631643,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 4}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-044-01.png"
+        ]
       },
       {
         "index": 45,
@@ -3684,7 +3886,9 @@
         "is_final": false,
         "elapsed_ms": 9013.3167952299,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 5}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-045-01.png"
+        ]
       },
       {
         "index": 46,
@@ -3718,7 +3922,9 @@
         "is_final": false,
         "elapsed_ms": 14554.7051727772,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 6}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-046-01.png"
+        ]
       },
       {
         "index": 47,
@@ -3752,7 +3958,9 @@
         "is_final": false,
         "elapsed_ms": 17165.9210231155,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 7}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-047-01.png"
+        ]
       },
       {
         "index": 48,
@@ -3782,7 +3990,9 @@
         "is_final": false,
         "elapsed_ms": 5008.2451589406,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 8, \"text\": \"Instrument\\nWEEKS 1-3\\n\\nFind the three moments where\\nsetup breaks.\\n\\n•  Event taxonomy\\n•  Journey replay\\n•  Owner baseline\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-048-01.png"
+        ]
       },
       {
         "index": 49,
@@ -3893,7 +4103,9 @@
         "is_final": false,
         "elapsed_ms": 5314.3112398684,
         "observation_text": "{\"message\": \"Formatted 9 text runs\", \"shape_index\": 8}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-049-01.png"
+        ]
       },
       {
         "index": 50,
@@ -3923,7 +4135,9 @@
         "is_final": false,
         "elapsed_ms": 4621.1348753422,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 9, \"text\": \"Remove friction\\nWEEKS 4-8\\n\\nShip the smallest changes that\\nunblock first value.\\n\\n•  Guided connector\\n•  Role presets\\n•  Recovery states\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-050-01.png"
+        ]
       },
       {
         "index": 51,
@@ -4034,7 +4248,9 @@
         "is_final": false,
         "elapsed_ms": 8817.0534837991,
         "observation_text": "{\"message\": \"Formatted 9 text runs\", \"shape_index\": 9}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-051-01.png"
+        ]
       },
       {
         "index": 52,
@@ -4064,7 +4280,9 @@
         "is_final": false,
         "elapsed_ms": 6970.859920606,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 10, \"text\": \"Scale the win\\nWEEKS 9-12\\n\\nStandardize the loop and expand\\nby segment.\\n\\n•  Lifecycle prompts\\n•  CS playbook\\n•  Weekly scorecard\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-052-01.png"
+        ]
       },
       {
         "index": 53,
@@ -4175,7 +4393,9 @@
         "is_final": false,
         "elapsed_ms": 10599.5827391744,
         "observation_text": "{\"message\": \"Formatted 9 text runs\", \"shape_index\": 10}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-053-01.png"
+        ]
       },
       {
         "index": 54,
@@ -4202,7 +4422,9 @@
         "is_final": false,
         "elapsed_ms": 11702.4531885982,
         "observation_text": "{\"message\": \"Added rounded_rectangle shape\", \"shape_index\": 11}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-054-01.png"
+        ]
       },
       {
         "index": 55,
@@ -4232,7 +4454,9 @@
         "is_final": false,
         "elapsed_ms": 21336.9535915554,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 12, \"text\": \"DECISION TODAY         Fund one activation squad for 90 days; review progress every Friday.\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-055-01.png"
+        ]
       },
       {
         "index": 56,
@@ -4273,7 +4497,9 @@
         "is_final": false,
         "elapsed_ms": 32192.1388395131,
         "observation_text": "{\"message\": \"Formatted 2 text runs\", \"shape_index\": 12}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-056-01.png"
+        ]
       },
       {
         "index": 57,
@@ -4304,7 +4530,9 @@
         "is_final": false,
         "elapsed_ms": 20853.8449574262,
         "observation_text": "{\"message\": \"Added text box to slide 2\", \"shape_index\": 13, \"text\": \"03\"}",
-        "checkpoint_images": []
+        "observation_images": [
+          "../assets/pptx/step-057-01.png"
+        ]
       },
       {
         "index": 58,
@@ -4318,7 +4546,7 @@
         "is_final": false,
         "elapsed_ms": 6420.8620712161,
         "observation_text": "All-slide contact sheet; saved=False; general_session=True.",
-        "checkpoint_images": [
+        "observation_images": [
           "../assets/pptx/step-058-01.png"
         ]
       },
@@ -4337,7 +4565,7 @@
         "is_final": false,
         "elapsed_ms": 8072.8074237704,
         "observation_text": "{\"artifact\": {\"name\": \"northstar_board_update.pptx\", \"presentation_id\": \"presentation_1\", \"sha256\": \"897127ea6f4a92a27b48c5e1d644d83193c18cf8e91f8f0295d1c59713128414\", \"size_bytes\": 33039, \"slide_count\": 3}, \"file_path\": \"northstar_board_update.pptx\", \"message\": \"Presentation saved to northstar_board_update.pptx\"}",
-        "checkpoint_images": []
+        "observation_images": []
       },
       {
         "index": 60,
@@ -4353,7 +4581,7 @@
         "is_final": true,
         "elapsed_ms": 20609.0191993862,
         "observation_text": "",
-        "checkpoint_images": []
+        "observation_images": []
       }
     ],
     "final_answer": "已成功复刻 Northstar 董事会经营简报的三页 16:9 演示文稿，并保存为 northstar_board_update.pptx。\n\n包含以下内容与视觉层级复刻：\n1. Slide 1 (封面页)：深蓝背景，包含 NORTHSTAR / BOARD UPDATE 绿字标签、大号 Q2 主标题与副标题、Executive operating review 描述、底部 JUNE 2026 | SAN FRANCISCO 胶囊型基带，以及右下角 01 页码。\n2. Slide 2 (数据脉搏与漏斗页)：浅米色背景，包含双色对比大标题、4 个 KPI 指标卡片（ARR $42.8M [+38% YoY]、Net Revenue Retention 118% [+4 pts]、Gross Margin 76% [+2 pts]、7-Day Activation 61% [-7 pts]）、4 级 Activation Funnel 梯度柱状图，以及右侧 35% BOARD READOUT 核心痛点提示卡片和右下角 02 页码。\n3. Slide 3 (未来规划与决策页)：深蓝背景，包含 70% activation 标题、3 个阶段执行卡片（01 Instrument / 02 Remove friction / 03 Scale the win 及其时间跨度与要点清单）、底部亮绿色 DECISION TODAY 决策行动横条，以及右下角 03 页码。\n\n全套 PPT 中所有标题、文本、数据、卡片及图形均为可编辑对象，完美保持视觉清晰度与高可读性。",

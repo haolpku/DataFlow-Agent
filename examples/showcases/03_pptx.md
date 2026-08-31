@@ -4,6 +4,8 @@
 
 > **Refine comparison:** this case shows the complete original trajectory and the complete refined trajectory. Refine created a new rollout; it did not overwrite the original record.
 
+> **Complete trajectory imagery:** the animation is a compressed overview of every rendered observation. Every original image is also preserved inside its corresponding tool-call section.
+
 The task supplies three visual references. The agent recreates their content and hierarchy as editable 16:9 slides and reviews the render.
 
 ## Original → Refined at a glance
@@ -34,16 +36,7 @@ The task supplies three visual references. The agent recreates their content and
 
 ## Original visual checkpoints
 
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="assets/pptx/original-step-013-01.png" alt="Step 13"><br><sub>Step 13</sub></td>
-    <td align="center" width="50%"><img src="assets/pptx/original-step-045-01.png" alt="Step 45"><br><sub>Step 45</sub></td>
-  </tr>
-  <tr>
-    <td align="center" width="50%"><img src="assets/pptx/original-step-064-01.png" alt="Step 64"><br><sub>Step 64</sub></td>
-    <td width="50%"></td>
-  </tr>
-</table>
+<p align="center"><img src="assets/pptx/original-trajectory.gif" alt="Original trajectory — every rendered observation in chronological order"><br><sub>Original trajectory — every rendered observation in chronological order</sub></p>
 
 ## Original trajectory
 
@@ -95,6 +88,8 @@ Add Slide 1 with solid dark navy background.
 
 <pre><code>{&quot;gradient_direction&quot;: &quot;horizontal&quot;, &quot;layout_name&quot;: &quot;Blank&quot;, &quot;message&quot;: &quot;Added slide 0 with layout 6&quot;, &quot;slide_index&quot;: 0}</code></pre>
 
+![Original step 2 observation](assets/pptx/original-step-002-01.png)
+
 </details>
 
 <details>
@@ -128,6 +123,8 @@ Let&#x27;s call `manage_text` to add the top header text on slide 0.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 0&quot;, &quot;shape_index&quot;: 0, &quot;text&quot;: &quot;NORTHSTAR / BOARD UPDATE&quot;}</code></pre>
+
+![Original step 3 observation](assets/pptx/original-step-003-01.png)
 
 </details>
 
@@ -163,6 +160,8 @@ Add main title text to slide 0.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 0&quot;, &quot;shape_index&quot;: 1, &quot;text&quot;: &quot;Q2\nA sharper path\nto durable growth.&quot;}</code></pre>
 
+![Original step 4 observation](assets/pptx/original-step-004-01.png)
+
 </details>
 
 <details>
@@ -196,6 +195,8 @@ Let&#x27;s call `manage_text` with operation format on shape 1. Wait, operation 
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Formatted text shape 1&quot;}</code></pre>
+
+![Original step 5 observation](assets/pptx/original-step-005-01.png)
 
 </details>
 
@@ -231,6 +232,8 @@ Formatting shape 1 to &#x27;Q2&#x27;.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted text shape 1&quot;}</code></pre>
 
+![Original step 6 observation](assets/pptx/original-step-006-01.png)
+
 </details>
 
 <details>
@@ -264,6 +267,8 @@ Let&#x27;s separate Q2, the headline, and subtitle into distinct text boxes. Fir
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Formatted text shape 1&quot;}</code></pre>
+
+![Original step 7 observation](assets/pptx/original-step-007-01.png)
 
 </details>
 
@@ -329,6 +334,8 @@ Let&#x27;s format shape 1 using `format_runs`.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 1}</code></pre>
 
+![Original step 9 observation](assets/pptx/original-step-009-01.png)
+
 </details>
 
 <details>
@@ -362,6 +369,8 @@ That worked. Now let&#x27;s add the subtitle below it: &#x27;Executive operating
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 0&quot;, &quot;shape_index&quot;: 2, &quot;text&quot;: &quot;Executive operating review&quot;}</code></pre>
+
+![Original step 10 observation](assets/pptx/original-step-010-01.png)
 
 </details>
 
@@ -406,6 +415,8 @@ Let&#x27;s call `add_shape` properly for the bottom metadata pill.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 3}</code></pre>
 
+![Original step 11 observation](assets/pptx/original-step-011-01.png)
+
 </details>
 
 <details>
@@ -439,6 +450,8 @@ Now add text runs inside shape 3 or add a text box over it. A text box over it p
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 0&quot;, &quot;shape_index&quot;: 4, &quot;text&quot;: &quot;JUNE 2026   |   SAN FRANCISCO&quot;}</code></pre>
+
+![Original step 12 observation](assets/pptx/original-step-012-01.png)
 
 </details>
 
@@ -538,6 +551,8 @@ Add large neon green circle at top right of Slide 1.
 
 <pre><code>{&quot;message&quot;: &quot;Added oval shape&quot;, &quot;shape_index&quot;: 6}</code></pre>
 
+![Original step 15 observation](assets/pptx/original-step-015-01.png)
+
 </details>
 
 <details>
@@ -569,6 +584,8 @@ Let&#x27;s call `add_connector` to test a diagonal line.
 
 <pre><code>{&quot;connector_type&quot;: &quot;straight&quot;, &quot;end_point&quot;: [13.33, 4.0], &quot;message&quot;: &quot;Added straight connector&quot;, &quot;shape_index&quot;: 7, &quot;start_point&quot;: [8.8, 0.0]}</code></pre>
 
+![Original step 16 observation](assets/pptx/original-step-016-01.png)
+
 </details>
 
 <details>
@@ -596,6 +613,8 @@ Now add slide 2 (index 1). Background is light cream `[246, 244, 238]`.
 **Observation**
 
 <pre><code>{&quot;gradient_direction&quot;: &quot;horizontal&quot;, &quot;layout_name&quot;: &quot;Blank&quot;, &quot;message&quot;: &quot;Added slide 1 with layout 6&quot;, &quot;slide_index&quot;: 1}</code></pre>
+
+![Original step 17 observation](assets/pptx/original-step-017-01.png)
 
 </details>
 
@@ -631,6 +650,8 @@ Add category tracker &#x27;Q2 EXECUTIVE PULSE&#x27; on slide 1.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 0, &quot;text&quot;: &quot;Q2 EXECUTIVE PULSE&quot;}</code></pre>
 
+![Original step 18 observation](assets/pptx/original-step-018-01.png)
+
 </details>
 
 <details>
@@ -656,6 +677,8 @@ Add main headline on slide 1: line 1 &#x27;Growth is strong.&#x27; in dark navy/
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 1, &quot;text&quot;: &quot;Growth is strong.\nActivation is the constraint.&quot;}</code></pre>
+
+![Original step 19 observation](assets/pptx/original-step-019-01.png)
 
 </details>
 
@@ -701,6 +724,8 @@ Format the text runs on shape 1.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 1}</code></pre>
 
+![Original step 20 observation](assets/pptx/original-step-020-01.png)
+
 </details>
 
 <details>
@@ -731,6 +756,8 @@ Add shape for Card 1 background.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 2}</code></pre>
 
+![Original step 21 observation](assets/pptx/original-step-021-01.png)
+
 </details>
 
 <details>
@@ -756,6 +783,8 @@ Add text content inside Card 1: label &#x27;ARR&#x27; and value &#x27;$42.8M&#x2
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 3, &quot;text&quot;: &quot;ARR\n$42.8M&quot;}</code></pre>
+
+![Original step 22 observation](assets/pptx/original-step-022-01.png)
 
 </details>
 
@@ -801,6 +830,8 @@ Format the text runs on shape 3 (Card 1 content).
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 3}</code></pre>
 
+![Original step 23 observation](assets/pptx/original-step-023-01.png)
+
 </details>
 
 <details>
@@ -838,6 +869,8 @@ Add badge shape &#x27;+38% YoY&#x27; inside Card 1.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 4}</code></pre>
 
+![Original step 24 observation](assets/pptx/original-step-024-01.png)
+
 </details>
 
 <details>
@@ -868,6 +901,8 @@ Card 2 background (NET REVENUE RETENTION).
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 5}</code></pre>
 
+![Original step 25 observation](assets/pptx/original-step-025-01.png)
+
 </details>
 
 <details>
@@ -893,6 +928,8 @@ Card 2 text.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 6, &quot;text&quot;: &quot;NET REVENUE RETENTION\n118%&quot;}</code></pre>
+
+![Original step 26 observation](assets/pptx/original-step-026-01.png)
 
 </details>
 
@@ -938,6 +975,8 @@ Format Card 2 text runs and add pill shape &#x27;+4 pts&#x27;.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 6}</code></pre>
 
+![Original step 27 observation](assets/pptx/original-step-027-01.png)
+
 </details>
 
 <details>
@@ -975,6 +1014,8 @@ Add pill shape &#x27;+4 pts&#x27; to Card 2.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 7}</code></pre>
 
+![Original step 28 observation](assets/pptx/original-step-028-01.png)
+
 </details>
 
 <details>
@@ -1005,6 +1046,8 @@ Card 3 background (GROSS MARGIN).
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 8}</code></pre>
 
+![Original step 29 observation](assets/pptx/original-step-029-01.png)
+
 </details>
 
 <details>
@@ -1030,6 +1073,8 @@ Card 3 text and pill.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 9, &quot;text&quot;: &quot;GROSS MARGIN\n76%&quot;}</code></pre>
+
+![Original step 30 observation](assets/pptx/original-step-030-01.png)
 
 </details>
 
@@ -1075,6 +1120,8 @@ Format Card 3 text runs and add pill shape &#x27;+2 pts&#x27;.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 9}</code></pre>
 
+![Original step 31 observation](assets/pptx/original-step-031-01.png)
+
 </details>
 
 <details>
@@ -1112,6 +1159,8 @@ Add pill shape &#x27;+2 pts&#x27; to Card 3.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 10}</code></pre>
 
+![Original step 32 observation](assets/pptx/original-step-032-01.png)
+
 </details>
 
 <details>
@@ -1142,6 +1191,8 @@ Card 4 background (7-DAY ACTIVATION).
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 11}</code></pre>
 
+![Original step 33 observation](assets/pptx/original-step-033-01.png)
+
 </details>
 
 <details>
@@ -1167,6 +1218,8 @@ Card 4 text.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 12, &quot;text&quot;: &quot;7-DAY ACTIVATION\n61%&quot;}</code></pre>
+
+![Original step 34 observation](assets/pptx/original-step-034-01.png)
 
 </details>
 
@@ -1212,6 +1265,8 @@ Format Card 4 text runs and add pill shape &#x27;-7 pts&#x27;.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 12}</code></pre>
 
+![Original step 35 observation](assets/pptx/original-step-035-01.png)
+
 </details>
 
 <details>
@@ -1249,6 +1304,8 @@ Add pill shape &#x27;-7 pts&#x27; to Card 4.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 13}</code></pre>
 
+![Original step 36 observation](assets/pptx/original-step-036-01.png)
+
 </details>
 
 <details>
@@ -1282,6 +1339,8 @@ Add &#x27;ACTIVATION FUNNEL&#x27; header text.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 14, &quot;text&quot;: &quot;ACTIVATION FUNNEL&quot;}</code></pre>
+
+![Original step 37 observation](assets/pptx/original-step-037-01.png)
 
 </details>
 
@@ -1320,6 +1379,8 @@ Add Funnel Bar 1: &#x27;12.4k Signed up&#x27;.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 15}</code></pre>
 
+![Original step 38 observation](assets/pptx/original-step-038-01.png)
+
 </details>
 
 <details>
@@ -1356,6 +1417,8 @@ Add Funnel Bar 2: &#x27;8.1k Connected data&#x27;.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 16}</code></pre>
+
+![Original step 39 observation](assets/pptx/original-step-039-01.png)
 
 </details>
 
@@ -1394,6 +1457,8 @@ Add Funnel Bar 3: &#x27;6.0k Invited team&#x27;.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 17}</code></pre>
 
+![Original step 40 observation](assets/pptx/original-step-040-01.png)
+
 </details>
 
 <details>
@@ -1431,6 +1496,8 @@ Add Funnel Bar 4: &#x27;3.9k Weekly value&#x27;.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 18}</code></pre>
 
+![Original step 41 observation](assets/pptx/original-step-041-01.png)
+
 </details>
 
 <details>
@@ -1467,6 +1534,8 @@ Add &#x27;BOARD READOUT&#x27; card container shape.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 19}</code></pre>
 
+![Original step 42 observation](assets/pptx/original-step-042-01.png)
+
 </details>
 
 <details>
@@ -1492,6 +1561,8 @@ Add BOARD READOUT text box over the shape.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 20, &quot;text&quot;: &quot;BOARD READOUT\n\n35%\n\nof sign-ups never connect\na data source — the\nlargest controllable leak.&quot;}</code></pre>
+
+![Original step 43 observation](assets/pptx/original-step-043-01.png)
 
 </details>
 
@@ -1546,6 +1617,8 @@ Format BOARD READOUT text runs on shape 20.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 3 text runs&quot;, &quot;shape_index&quot;: 20}</code></pre>
+
+![Original step 44 observation](assets/pptx/original-step-044-01.png)
 
 </details>
 
@@ -1611,6 +1684,8 @@ Now add slide 3 (index 2). Background is solid dark navy `[15, 23, 36]`.
 
 <pre><code>{&quot;gradient_direction&quot;: &quot;horizontal&quot;, &quot;layout_name&quot;: &quot;Blank&quot;, &quot;message&quot;: &quot;Added slide 2 with layout 6&quot;, &quot;slide_index&quot;: 2}</code></pre>
 
+![Original step 46 observation](assets/pptx/original-step-046-01.png)
+
 </details>
 
 <details>
@@ -1645,6 +1720,8 @@ Add category tracker &#x27;THE NEXT 90 DAYS&#x27; on slide 2.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 0, &quot;text&quot;: &quot;THE NEXT 90 DAYS&quot;}</code></pre>
 
+![Original step 47 observation](assets/pptx/original-step-047-01.png)
+
 </details>
 
 <details>
@@ -1670,6 +1747,8 @@ Add title on slide 2: &#x27;A focused path to 70% activation.&#x27;
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 1, &quot;text&quot;: &quot;A focused path to \n70% activation.&quot;}</code></pre>
+
+![Original step 48 observation](assets/pptx/original-step-048-01.png)
 
 </details>
 
@@ -1715,6 +1794,8 @@ Format title text runs on shape 1 of slide 2.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 1}</code></pre>
 
+![Original step 49 observation](assets/pptx/original-step-049-01.png)
+
 </details>
 
 <details>
@@ -1750,6 +1831,8 @@ Add background container shape for Card 1 (Instrument).
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 2}</code></pre>
+
+![Original step 50 observation](assets/pptx/original-step-050-01.png)
 
 </details>
 
@@ -1788,6 +1871,8 @@ Add step pill shape &#x27;01&#x27; on Card 1.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 3}</code></pre>
 
+![Original step 51 observation](assets/pptx/original-step-051-01.png)
+
 </details>
 
 <details>
@@ -1813,6 +1898,8 @@ Add text content inside Card 1.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 4, &quot;text&quot;: &quot;Instrument\nWEEKS 1-3\n\nFind the three moments where\nsetup breaks.\n\n•  Event taxonomy\n•  Journey replay\n•  Owner baseline&quot;}</code></pre>
+
+![Original step 52 observation](assets/pptx/original-step-052-01.png)
 
 </details>
 
@@ -1928,6 +2015,8 @@ Format text runs on Card 1 content (shape 4).
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 9 text runs&quot;, &quot;shape_index&quot;: 4}</code></pre>
 
+![Original step 53 observation](assets/pptx/original-step-053-01.png)
+
 </details>
 
 <details>
@@ -1963,6 +2052,8 @@ Card 2 background container shape.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 5}</code></pre>
+
+![Original step 54 observation](assets/pptx/original-step-054-01.png)
 
 </details>
 
@@ -2001,6 +2092,8 @@ Add step pill shape &#x27;02&#x27; on Card 2. Light blue `[160, 220, 250]`.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 6}</code></pre>
 
+![Original step 55 observation](assets/pptx/original-step-055-01.png)
+
 </details>
 
 <details>
@@ -2026,6 +2119,8 @@ Add text content inside Card 2.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 7, &quot;text&quot;: &quot;Remove friction\nWEEKS 4-8\n\nShip the smallest changes that\nunblock first value.\n\n•  Guided connector\n•  Role presets\n•  Recovery states&quot;}</code></pre>
+
+![Original step 56 observation](assets/pptx/original-step-056-01.png)
 
 </details>
 
@@ -2141,6 +2236,8 @@ Format text runs on Card 2 content (shape 7).
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 9 text runs&quot;, &quot;shape_index&quot;: 7}</code></pre>
 
+![Original step 57 observation](assets/pptx/original-step-057-01.png)
+
 </details>
 
 <details>
@@ -2176,6 +2273,8 @@ Card 3 background container shape.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 8}</code></pre>
+
+![Original step 58 observation](assets/pptx/original-step-058-01.png)
 
 </details>
 
@@ -2214,6 +2313,8 @@ Add step pill shape &#x27;03&#x27; on Card 3. Pink/lavender `[230, 180, 240]`.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 9}</code></pre>
 
+![Original step 59 observation](assets/pptx/original-step-059-01.png)
+
 </details>
 
 <details>
@@ -2239,6 +2340,8 @@ Add text content inside Card 3.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 10, &quot;text&quot;: &quot;Scale the win\nWEEKS 9-12\n\nStandardize the loop and expand\nby segment.\n\n•  Lifecycle prompts\n•  CS playbook\n•  Weekly scorecard&quot;}</code></pre>
+
+![Original step 60 observation](assets/pptx/original-step-060-01.png)
 
 </details>
 
@@ -2354,6 +2457,8 @@ Format text runs on Card 3 content (shape 10).
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 9 text runs&quot;, &quot;shape_index&quot;: 10}</code></pre>
 
+![Original step 61 observation](assets/pptx/original-step-061-01.png)
+
 </details>
 
 <details>
@@ -2384,6 +2489,8 @@ Add bottom banner shape &#x27;DECISION TODAY&#x27;. Neon green `[200, 245, 40]`.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 11}</code></pre>
 
+![Original step 62 observation](assets/pptx/original-step-062-01.png)
+
 </details>
 
 <details>
@@ -2409,6 +2516,8 @@ Add text inside bottom banner shape 11.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 12, &quot;text&quot;: &quot;DECISION TODAY         Fund one activation squad for 90 days; review progress every Friday.&quot;}</code></pre>
+
+![Original step 63 observation](assets/pptx/original-step-063-01.png)
 
 </details>
 
@@ -2489,12 +2598,7 @@ Agent 成功创建了 16:9 的演示文稿并逐步复刻了三页幻灯片的�
 
 ## Refined visual checkpoints
 
-<table>
-  <tr>
-    <td align="center" width="50%"><img src="assets/pptx/step-058-01.png" alt="Step 58"><br><sub>Step 58</sub></td>
-    <td width="50%"></td>
-  </tr>
-</table>
+<p align="center"><img src="assets/pptx/refined-trajectory.gif" alt="Refined trajectory — every rendered observation in chronological order"><br><sub>Refined trajectory — every rendered observation in chronological order</sub></p>
 
 ## Refined trajectory
 
@@ -2546,6 +2650,8 @@ Add Slide 1 with dark background.
 
 <pre><code>{&quot;gradient_direction&quot;: &quot;horizontal&quot;, &quot;layout_name&quot;: &quot;Blank&quot;, &quot;message&quot;: &quot;Added slide 0 with layout 6&quot;, &quot;slide_index&quot;: 0}</code></pre>
 
+![Refined step 2 observation](assets/pptx/step-002-01.png)
+
 </details>
 
 <details>
@@ -2580,6 +2686,8 @@ Let&#x27;s call manage_text to add NORTHSTAR / BOARD UPDATE on slide 0.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 0&quot;, &quot;shape_index&quot;: 0, &quot;text&quot;: &quot;NORTHSTAR / BOARD UPDATE&quot;}</code></pre>
 
+![Refined step 3 observation](assets/pptx/step-003-01.png)
+
 </details>
 
 <details>
@@ -2612,6 +2720,8 @@ Now add main title on Slide 0 using format_runs for exact font sizing. First add
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 0&quot;, &quot;shape_index&quot;: 1, &quot;text&quot;: &quot;Q2\nA sharper path\nto durable growth.&quot;}</code></pre>
+
+![Refined step 4 observation](assets/pptx/step-004-01.png)
 
 </details>
 
@@ -2657,6 +2767,8 @@ Format runs for Q2 (huge bold font) and subtitle text.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 1}</code></pre>
 
+![Refined step 5 observation](assets/pptx/step-005-01.png)
+
 </details>
 
 <details>
@@ -2689,6 +2801,8 @@ Add &#x27;Executive operating review&#x27; below title.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 0&quot;, &quot;shape_index&quot;: 2, &quot;text&quot;: &quot;Executive operating review&quot;}</code></pre>
+
+![Refined step 6 observation](assets/pptx/step-006-01.png)
 
 </details>
 
@@ -2733,6 +2847,8 @@ Add date bar shape at bottom left: JUNE 2026 | SAN FRANCISCO.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 3}</code></pre>
 
+![Refined step 7 observation](assets/pptx/step-007-01.png)
+
 </details>
 
 <details>
@@ -2767,6 +2883,8 @@ Add page number &#x27;01&#x27; at bottom right of slide 0.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 0&quot;, &quot;shape_index&quot;: 4, &quot;text&quot;: &quot;01&quot;}</code></pre>
 
+![Refined step 8 observation](assets/pptx/step-008-01.png)
+
 </details>
 
 <details>
@@ -2794,6 +2912,8 @@ Now add Slide 2 (light background).
 **Observation**
 
 <pre><code>{&quot;gradient_direction&quot;: &quot;horizontal&quot;, &quot;layout_name&quot;: &quot;Blank&quot;, &quot;message&quot;: &quot;Added slide 1 with layout 6&quot;, &quot;slide_index&quot;: 1}</code></pre>
+
+![Refined step 9 observation](assets/pptx/step-009-01.png)
 
 </details>
 
@@ -2829,6 +2949,8 @@ Add header to Slide 1: Q2 EXECUTIVE PULSE, and main title: Growth is strong. Act
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 0, &quot;text&quot;: &quot;Q2 EXECUTIVE PULSE&quot;}</code></pre>
 
+![Refined step 10 observation](assets/pptx/step-010-01.png)
+
 </details>
 
 <details>
@@ -2861,6 +2983,8 @@ Add main title on slide 1 with two colored lines. First add text box then format
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 1, &quot;text&quot;: &quot;Growth is strong.\nActivation is the constraint.&quot;}</code></pre>
+
+![Refined step 11 observation](assets/pptx/step-011-01.png)
 
 </details>
 
@@ -2906,6 +3030,8 @@ Format runs for title: line 1 dark navy bold 34pt, line 2 coral red bold 34pt.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 1}</code></pre>
 
+![Refined step 12 observation](assets/pptx/step-012-01.png)
+
 </details>
 
 <details>
@@ -2935,6 +3061,8 @@ Add shape for Card 1 background.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 2}</code></pre>
+
+![Refined step 13 observation](assets/pptx/step-013-01.png)
 
 </details>
 
@@ -2970,6 +3098,8 @@ Add Card 1 text content and tag badge.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 3, &quot;text&quot;: &quot;ARR&quot;}</code></pre>
 
+![Refined step 14 observation](assets/pptx/step-014-01.png)
+
 </details>
 
 <details>
@@ -3003,6 +3133,8 @@ Add value text $42.8M for card 1.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 4, &quot;text&quot;: &quot;$42.8M&quot;}</code></pre>
+
+![Refined step 15 observation](assets/pptx/step-015-01.png)
 
 </details>
 
@@ -3041,6 +3173,8 @@ Add badge +38% YoY for Card 1.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 5}</code></pre>
 
+![Refined step 16 observation](assets/pptx/step-016-01.png)
+
 </details>
 
 <details>
@@ -3070,6 +3204,8 @@ Add Card 2: white background card for NET REVENUE RETENTION, 118%, badge +4 pts.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 6}</code></pre>
+
+![Refined step 17 observation](assets/pptx/step-017-01.png)
 
 </details>
 
@@ -3105,6 +3241,8 @@ Add Card 2 text: NET REVENUE RETENTION.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 7, &quot;text&quot;: &quot;NET REVENUE RETENTION&quot;}</code></pre>
 
+![Refined step 18 observation](assets/pptx/step-018-01.png)
+
 </details>
 
 <details>
@@ -3138,6 +3276,8 @@ Add value 118% for Card 2.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 8, &quot;text&quot;: &quot;118%&quot;}</code></pre>
+
+![Refined step 19 observation](assets/pptx/step-019-01.png)
 
 </details>
 
@@ -3176,6 +3316,8 @@ Add badge +4 pts for Card 2.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 9}</code></pre>
 
+![Refined step 20 observation](assets/pptx/step-020-01.png)
+
 </details>
 
 <details>
@@ -3205,6 +3347,8 @@ Add Card 3: white background card for GROSS MARGIN, 76%, badge +2 pts.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 10}</code></pre>
+
+![Refined step 21 observation](assets/pptx/step-021-01.png)
 
 </details>
 
@@ -3240,6 +3384,8 @@ Add text GROSS MARGIN, value 76%, badge +2 pts for Card 3.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 11, &quot;text&quot;: &quot;GROSS MARGIN&quot;}</code></pre>
 
+![Refined step 22 observation](assets/pptx/step-022-01.png)
+
 </details>
 
 <details>
@@ -3273,6 +3419,8 @@ Add value 76% for Card 3.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 12, &quot;text&quot;: &quot;76%&quot;}</code></pre>
+
+![Refined step 23 observation](assets/pptx/step-023-01.png)
 
 </details>
 
@@ -3311,6 +3459,8 @@ Add badge +2 pts for Card 3.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 13}</code></pre>
 
+![Refined step 24 observation](assets/pptx/step-024-01.png)
+
 </details>
 
 <details>
@@ -3340,6 +3490,8 @@ Add Card 4: 7-DAY ACTIVATION, 61%, badge -7 pts (light pink background).
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 14}</code></pre>
+
+![Refined step 25 observation](assets/pptx/step-025-01.png)
 
 </details>
 
@@ -3375,6 +3527,8 @@ Add text 7-DAY ACTIVATION, 61%, badge -7 pts for Card 4.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 15, &quot;text&quot;: &quot;7-DAY ACTIVATION&quot;}</code></pre>
 
+![Refined step 26 observation](assets/pptx/step-026-01.png)
+
 </details>
 
 <details>
@@ -3408,6 +3562,8 @@ Add value 61% for Card 4.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 16, &quot;text&quot;: &quot;61%&quot;}</code></pre>
+
+![Refined step 27 observation](assets/pptx/step-027-01.png)
 
 </details>
 
@@ -3446,6 +3602,8 @@ Add badge -7 pts for Card 4.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 17}</code></pre>
 
+![Refined step 28 observation](assets/pptx/step-028-01.png)
+
 </details>
 
 <details>
@@ -3479,6 +3637,8 @@ Now add section title &#x27;ACTIVATION FUNNEL&#x27;.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 18, &quot;text&quot;: &quot;ACTIVATION FUNNEL&quot;}</code></pre>
+
+![Refined step 29 observation](assets/pptx/step-029-01.png)
 
 </details>
 
@@ -3517,6 +3677,8 @@ Add funnel bar 1: 12.4k Signed up.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 19}</code></pre>
 
+![Refined step 30 observation](assets/pptx/step-030-01.png)
+
 </details>
 
 <details>
@@ -3553,6 +3715,8 @@ Add funnel bar 2: 8.1k Connected data.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 20}</code></pre>
+
+![Refined step 31 observation](assets/pptx/step-031-01.png)
 
 </details>
 
@@ -3591,6 +3755,8 @@ Add funnel bar 3: 6.0k Invited team.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 21}</code></pre>
 
+![Refined step 32 observation](assets/pptx/step-032-01.png)
+
 </details>
 
 <details>
@@ -3628,6 +3794,8 @@ Add funnel bar 4: 3.9k Weekly value (bright neon green bar).
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 22}</code></pre>
 
+![Refined step 33 observation](assets/pptx/step-033-01.png)
+
 </details>
 
 <details>
@@ -3664,6 +3832,8 @@ Add BOARD READOUT right side white card box on slide 1.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 23}</code></pre>
 
+![Refined step 34 observation](assets/pptx/step-034-01.png)
+
 </details>
 
 <details>
@@ -3696,6 +3866,8 @@ Add BOARD READOUT text inside the card on slide 1.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 24, &quot;text&quot;: &quot;BOARD READOUT\n35%\nof sign-ups never connect\na data source — the\nlargest controllable leak.&quot;}</code></pre>
+
+![Refined step 35 observation](assets/pptx/step-035-01.png)
 
 </details>
 
@@ -3751,6 +3923,8 @@ Format runs in BOARD READOUT box: BOARD READOUT 10pt gray bold, 35% 32pt coral r
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 3 text runs&quot;, &quot;shape_index&quot;: 24}</code></pre>
 
+![Refined step 36 observation](assets/pptx/step-036-01.png)
+
 </details>
 
 <details>
@@ -3785,6 +3959,8 @@ Add page number &#x27;02&#x27; at bottom right of slide 1.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 1&quot;, &quot;shape_index&quot;: 25, &quot;text&quot;: &quot;02&quot;}</code></pre>
 
+![Refined step 37 observation](assets/pptx/step-037-01.png)
+
 </details>
 
 <details>
@@ -3812,6 +3988,8 @@ Now add Slide 3 (dark navy background).
 **Observation**
 
 <pre><code>{&quot;gradient_direction&quot;: &quot;horizontal&quot;, &quot;layout_name&quot;: &quot;Blank&quot;, &quot;message&quot;: &quot;Added slide 2 with layout 6&quot;, &quot;slide_index&quot;: 2}</code></pre>
+
+![Refined step 38 observation](assets/pptx/step-038-01.png)
 
 </details>
 
@@ -3847,6 +4025,8 @@ On Slide 3 (index 2), add category header: THE NEXT 90 DAYS.
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 0, &quot;text&quot;: &quot;THE NEXT 90 DAYS&quot;}</code></pre>
 
+![Refined step 39 observation](assets/pptx/step-039-01.png)
+
 </details>
 
 <details>
@@ -3880,6 +4060,8 @@ Add main title on slide 3: A focused path to
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 1, &quot;text&quot;: &quot;A focused path to\n70% activation.&quot;}</code></pre>
+
+![Refined step 40 observation](assets/pptx/step-040-01.png)
 
 </details>
 
@@ -3925,6 +4107,8 @@ Format runs for slide 3 title: white bold 36pt, second line &#x27;70% activation
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 1}</code></pre>
 
+![Refined step 41 observation](assets/pptx/step-041-01.png)
+
 </details>
 
 <details>
@@ -3960,6 +4144,8 @@ Add 3 card containers on slide 3. Card 1 container shape.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 2}</code></pre>
+
+![Refined step 42 observation](assets/pptx/step-042-01.png)
 
 </details>
 
@@ -3997,6 +4183,8 @@ Card 2 container shape.
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 3}</code></pre>
 
+![Refined step 43 observation](assets/pptx/step-043-01.png)
+
 </details>
 
 <details>
@@ -4032,6 +4220,8 @@ Card 3 container shape.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 4}</code></pre>
+
+![Refined step 44 observation](assets/pptx/step-044-01.png)
 
 </details>
 
@@ -4070,6 +4260,8 @@ Add badge 01 for Card 1 (lime green background).
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 5}</code></pre>
 
+![Refined step 45 observation](assets/pptx/step-045-01.png)
+
 </details>
 
 <details>
@@ -4106,6 +4298,8 @@ Add badge 02 for Card 2 (light blue background).
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 6}</code></pre>
+
+![Refined step 46 observation](assets/pptx/step-046-01.png)
 
 </details>
 
@@ -4144,6 +4338,8 @@ Add badge 03 for Card 3 (light purple background).
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 7}</code></pre>
 
+![Refined step 47 observation](assets/pptx/step-047-01.png)
+
 </details>
 
 <details>
@@ -4176,6 +4372,8 @@ Add Card 1 text content on slide 3.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 8, &quot;text&quot;: &quot;Instrument\nWEEKS 1-3\n\nFind the three moments where\nsetup breaks.\n\n•  Event taxonomy\n•  Journey replay\n•  Owner baseline&quot;}</code></pre>
+
+![Refined step 48 observation](assets/pptx/step-048-01.png)
 
 </details>
 
@@ -4291,6 +4489,8 @@ Format runs for Card 1 text: Instrument bold 18pt white, WEEKS 1-3 bold 10pt lim
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 9 text runs&quot;, &quot;shape_index&quot;: 8}</code></pre>
 
+![Refined step 49 observation](assets/pptx/step-049-01.png)
+
 </details>
 
 <details>
@@ -4323,6 +4523,8 @@ Add Card 2 text content on slide 3.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 9, &quot;text&quot;: &quot;Remove friction\nWEEKS 4-8\n\nShip the smallest changes that\nunblock first value.\n\n•  Guided connector\n•  Role presets\n•  Recovery states&quot;}</code></pre>
+
+![Refined step 50 observation](assets/pptx/step-050-01.png)
 
 </details>
 
@@ -4438,6 +4640,8 @@ Format runs for Card 2 text.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 9 text runs&quot;, &quot;shape_index&quot;: 9}</code></pre>
 
+![Refined step 51 observation](assets/pptx/step-051-01.png)
+
 </details>
 
 <details>
@@ -4470,6 +4674,8 @@ Add Card 3 text content on slide 3.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 10, &quot;text&quot;: &quot;Scale the win\nWEEKS 9-12\n\nStandardize the loop and expand\nby segment.\n\n•  Lifecycle prompts\n•  CS playbook\n•  Weekly scorecard&quot;}</code></pre>
+
+![Refined step 52 observation](assets/pptx/step-052-01.png)
 
 </details>
 
@@ -4585,6 +4791,8 @@ Format runs for Card 3 text.
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 9 text runs&quot;, &quot;shape_index&quot;: 10}</code></pre>
 
+![Refined step 53 observation](assets/pptx/step-053-01.png)
+
 </details>
 
 <details>
@@ -4614,6 +4822,8 @@ Add bottom banner shape on slide 3 (lime green banner).
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added rounded_rectangle shape&quot;, &quot;shape_index&quot;: 11}</code></pre>
+
+![Refined step 54 observation](assets/pptx/step-054-01.png)
 
 </details>
 
@@ -4647,6 +4857,8 @@ Add banner text on slide 3: DECISION TODAY      Fund one activation squad for 90
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 12, &quot;text&quot;: &quot;DECISION TODAY         Fund one activation squad for 90 days; review progress every Friday.&quot;}</code></pre>
+
+![Refined step 55 observation](assets/pptx/step-055-01.png)
 
 </details>
 
@@ -4692,6 +4904,8 @@ Format runs in DECISION TODAY banner: DECISION TODAY bold 11pt, description bold
 
 <pre><code>{&quot;message&quot;: &quot;Formatted 2 text runs&quot;, &quot;shape_index&quot;: 12}</code></pre>
 
+![Refined step 56 observation](assets/pptx/step-056-01.png)
+
 </details>
 
 <details>
@@ -4725,6 +4939,8 @@ Add page number &#x27;03&#x27; at bottom right of slide 2.
 **Observation**
 
 <pre><code>{&quot;message&quot;: &quot;Added text box to slide 2&quot;, &quot;shape_index&quot;: 13, &quot;text&quot;: &quot;03&quot;}</code></pre>
+
+![Refined step 57 observation](assets/pptx/step-057-01.png)
 
 </details>
 

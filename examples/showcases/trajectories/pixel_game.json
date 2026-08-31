@@ -1,5 +1,5 @@
 {
-  "format": "dataflow-mm-agent-showcase-compact-v1",
+  "format": "dataflow-mm-agent-showcase-compact-v2",
   "task_id": "task0005",
   "env_id": "pixel_game",
   "task_prompt": "ORBIT VAULT 的 BOT 需要在能源耗尽前完成清扫：收集画面中的全部五枚宝石并抵达 GOAL。电量只够 40 次成功的单格移动；撞墙不耗电，但请避免无效试探。完成后简要报告你的路线。",
@@ -19,7 +19,7 @@
       "is_final": false,
       "elapsed_ms": 32424.9317161739,
       "observation_text": "Pyxel is not installed. Install envs/pixel_game/requirements.txt.",
-      "checkpoint_images": []
+      "observation_images": []
     },
     {
       "index": 2,
@@ -36,7 +36,7 @@
       "is_final": false,
       "elapsed_ms": 7310.3116806597,
       "observation_text": "Moved 1 step(s) right. Collected 0/5.",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/pixel_game/step-002-01.png"
       ]
     },
@@ -55,7 +55,9 @@
       "is_final": false,
       "elapsed_ms": 13643.5827184469,
       "observation_text": "Moved 6 step(s) up. Collected 1/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-003-01.png"
+      ]
     },
     {
       "index": 4,
@@ -72,7 +74,9 @@
       "is_final": false,
       "elapsed_ms": 4700.2848330885,
       "observation_text": "Moved 5 step(s) down. Collected 1/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-004-01.png"
+      ]
     },
     {
       "index": 5,
@@ -89,7 +93,9 @@
       "is_final": false,
       "elapsed_ms": 4760.887587443,
       "observation_text": "Moved 1 step(s) down. Collected 1/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-005-01.png"
+      ]
     },
     {
       "index": 6,
@@ -106,7 +112,9 @@
       "is_final": false,
       "elapsed_ms": 3722.5759271532,
       "observation_text": "Moved 2 step(s) right. Collected 1/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-006-01.png"
+      ]
     },
     {
       "index": 7,
@@ -123,7 +131,7 @@
       "is_final": false,
       "elapsed_ms": 8081.4206618816,
       "observation_text": "Moved 1 step(s) right. Collected 1/5.",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/pixel_game/step-007-01.png"
       ]
     },
@@ -142,7 +150,9 @@
       "is_final": false,
       "elapsed_ms": 5929.7763612121,
       "observation_text": "Moved 1 step(s) up. Collected 2/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-008-01.png"
+      ]
     },
     {
       "index": 9,
@@ -159,7 +169,9 @@
       "is_final": false,
       "elapsed_ms": 11840.9053813666,
       "observation_text": "Moved 1 step(s) up. Collected 2/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-009-01.png"
+      ]
     },
     {
       "index": 10,
@@ -176,7 +188,9 @@
       "is_final": false,
       "elapsed_ms": 4328.2267954201,
       "observation_text": "Moved 1 step(s) right. Collected 2/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-010-01.png"
+      ]
     },
     {
       "index": 11,
@@ -193,7 +207,9 @@
       "is_final": false,
       "elapsed_ms": 7249.5955917984,
       "observation_text": "Moved 1 step(s) right; movement blocked. Collected 2/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-011-01.png"
+      ]
     },
     {
       "index": 12,
@@ -210,7 +226,9 @@
       "is_final": false,
       "elapsed_ms": 7086.2226337194,
       "observation_text": "Moved 1 step(s) down. Collected 2/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-012-01.png"
+      ]
     },
     {
       "index": 13,
@@ -227,7 +245,7 @@
       "is_final": false,
       "elapsed_ms": 8188.6502001435,
       "observation_text": "Moved 0 step(s) right; movement blocked. Collected 2/5.",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/pixel_game/step-013-01.png"
       ]
     },
@@ -246,7 +264,9 @@
       "is_final": false,
       "elapsed_ms": 16070.5187302083,
       "observation_text": "Moved 1 step(s) down. Collected 2/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-014-01.png"
+      ]
     },
     {
       "index": 15,
@@ -263,7 +283,9 @@
       "is_final": false,
       "elapsed_ms": 6894.5794031024,
       "observation_text": "Moved 2 step(s) right. Collected 2/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-015-01.png"
+      ]
     },
     {
       "index": 16,
@@ -280,7 +302,9 @@
       "is_final": false,
       "elapsed_ms": 9142.9370027035,
       "observation_text": "Moved 1 step(s) up. Collected 3/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-016-01.png"
+      ]
     },
     {
       "index": 17,
@@ -297,7 +321,9 @@
       "is_final": false,
       "elapsed_ms": 4583.7779082358,
       "observation_text": "Moved 3 step(s) up. Collected 3/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-017-01.png"
+      ]
     },
     {
       "index": 18,
@@ -314,7 +340,9 @@
       "is_final": false,
       "elapsed_ms": 4491.2294447422,
       "observation_text": "Moved 1 step(s) right. Collected 4/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-018-01.png"
+      ]
     },
     {
       "index": 19,
@@ -331,7 +359,7 @@
       "is_final": false,
       "elapsed_ms": 12389.0276607126,
       "observation_text": "Moved 2 step(s) left. Collected 4/5.",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/pixel_game/step-019-01.png"
       ]
     },
@@ -350,7 +378,9 @@
       "is_final": false,
       "elapsed_ms": 4617.0105040073,
       "observation_text": "Moved 0 step(s) up; movement blocked. Collected 4/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-020-01.png"
+      ]
     },
     {
       "index": 21,
@@ -367,7 +397,9 @@
       "is_final": false,
       "elapsed_ms": 14089.097307995,
       "observation_text": "Moved 1 step(s) left. Collected 4/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-021-01.png"
+      ]
     },
     {
       "index": 22,
@@ -384,7 +416,9 @@
       "is_final": false,
       "elapsed_ms": 7288.0636323243,
       "observation_text": "Moved 1 step(s) up. Collected 5/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-022-01.png"
+      ]
     },
     {
       "index": 23,
@@ -401,7 +435,9 @@
       "is_final": false,
       "elapsed_ms": 4058.3310071379,
       "observation_text": "Moved 1 step(s) down. Collected 5/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-023-01.png"
+      ]
     },
     {
       "index": 24,
@@ -418,7 +454,9 @@
       "is_final": false,
       "elapsed_ms": 4625.5171559751,
       "observation_text": "Moved 2 step(s) right. Collected 5/5.",
-      "checkpoint_images": []
+      "observation_images": [
+        "../assets/pixel_game/step-024-01.png"
+      ]
     },
     {
       "index": 25,
@@ -435,7 +473,7 @@
       "is_final": false,
       "elapsed_ms": 7664.436141029,
       "observation_text": "Moved 3 step(s) up. Collected 5/5.",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/pixel_game/step-025-01.png"
       ]
     },
@@ -454,7 +492,7 @@
       "is_final": false,
       "elapsed_ms": 26560.4001712054,
       "observation_text": "Moved 1 step(s) right. Collected 5/5.",
-      "checkpoint_images": [
+      "observation_images": [
         "../assets/pixel_game/step-026-01.png"
       ]
     },
@@ -472,7 +510,7 @@
       "is_final": true,
       "elapsed_ms": 6396.4317645878,
       "observation_text": "",
-      "checkpoint_images": []
+      "observation_images": []
     }
   ],
   "final_answer": "BOT成功在40步限制内收集了全部5枚宝石并抵达GOAL。路线摘要：\n1. 从 (0,7) 右移1步，上移6步收集第1枚宝石 (1,1)。\n2. 下移6步，右移2步，上移1步收集第2枚宝石 (3,6)。\n3. 上移1步，右移1步，下移1步，右移2步，上移1步收集第3枚宝石 (6,6)。\n4. 上移3步，右移1步收集第4枚宝石 (7,3)。\n5. 左移3步，上移1步收集第5枚宝石 (4,2)。\n6. 下移1步，右移2步，上移3步，右移1步成功抵达目标 GOAL (7,0)。",

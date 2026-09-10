@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -16,6 +16,7 @@ from ..contracts import (
     ReplayVerifierFactory,
     Scenario,
     Task,
+    TextContent,
     VerificationCheck,
     VerificationResult,
     validate_task_id,
@@ -25,6 +26,8 @@ from ..contracts.trajectory import Trajectory
 
 
 STATE_PREDICATE_VERIFIER_KIND = "state_predicate"
+MAX_TEXT_REF_BYTES = 512 * 1024
+TEXT_REF_MEDIA_TYPES = frozenset({"text/plain", "text/markdown"})
 PREDICATE_OPERATORS = frozenset(
     {"equals", "not_equals", "gte", "lte", "empty", "not_empty"}
 )
@@ -72,6 +75,7 @@ class JsonTaskStore:
             "messages",
             "scenario",
             "verification",
+            "judge_ref",
         }
         extra = set(record).difference(allowed)
         if extra:
@@ -103,23 +107,57 @@ class JsonTaskStore:
             if not isinstance(content_items, list):
                 raise TypeError("task message content must be a list")
             for index, content in enumerate(content_items):
-                if not isinstance(content, Mapping) or content.get("type") != "image_ref":
+                if not isinstance(content, Mapping) or content.get("type") not in {
+                    "image_ref",
+                    "text_ref",
+                }:
                     continue
                 relative = Path(str(content.get("relative_path") or ""))
                 if not relative.parts or relative.is_absolute() or ".." in relative.parts:
-                    raise ValueError("image_ref must be a confined relative path")
+                    raise ValueError(
+                        f"{content.get('type')} must be a confined relative path"
+                    )
                 path = (self.root / relative).resolve(strict=True)
                 if not path.is_relative_to(self.root):
-                    raise ValueError("image_ref escapes the task store")
+                    raise ValueError(f"{content.get('type')} escapes the task store")
                 payload = path.read_bytes()
                 expected = str(content.get("sha256") or "")
                 if hashlib.sha256(payload).hexdigest() != expected:
-                    raise ValueError(f"image_ref sha256 mismatch: {relative}")
-                content_items[index] = ImageContent.from_bytes(
-                    payload,
-                    str(content["media_type"]),
-                    detail=str(content.get("detail") or "original"),
-                ).to_dict()
+                    raise ValueError(
+                        f"{content.get('type')} sha256 mismatch: {relative}"
+                    )
+                if content.get("type") == "image_ref":
+                    content_items[index] = ImageContent.from_bytes(
+                        payload,
+                        str(content["media_type"]),
+                        detail=str(content.get("detail") or "original"),
+                    ).to_dict()
+                    continue
+
+                extra = set(content).difference(
+                    {"type", "relative_path", "media_type", "sha256", "encoding"}
+                )
+                if extra:
+                    raise ValueError(
+                        f"text_ref has unsupported fields: {sorted(extra)}"
+                    )
+                media_type = content.get("media_type")
+                if media_type not in TEXT_REF_MEDIA_TYPES:
+                    raise ValueError(
+                        "text_ref media_type must be text/plain or text/markdown"
+                    )
+                encoding = content.get("encoding", "utf-8")
+                if encoding != "utf-8":
+                    raise ValueError("text_ref encoding must be utf-8")
+                if len(payload) > MAX_TEXT_REF_BYTES:
+                    raise ValueError(
+                        f"text_ref exceeds {MAX_TEXT_REF_BYTES} bytes: {relative}"
+                    )
+                try:
+                    text = payload.decode("utf-8")
+                except UnicodeDecodeError as exc:
+                    raise ValueError(f"text_ref is not valid utf-8: {relative}") from exc
+                content_items[index] = TextContent(text).to_dict()
         record["messages"] = materialized_messages
         raw_scenario = record.get("scenario")
         scenario: Scenario | None = None
@@ -149,7 +187,10 @@ class JsonTaskStore:
 
         task_record = {
             key: record[key]
-            for key in ("schema_version", "task_id", "env_id", "messages")
+            for key in (
+                "schema_version", "task_id", "env_id", "messages", "judge_ref"
+            )
+            if key in record
         }
         return Task.from_dict(task_record, scenario=scenario)
 

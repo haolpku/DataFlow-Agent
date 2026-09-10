@@ -26,7 +26,7 @@ from ..contracts import (
 )
 from ..contracts.trajectory import EpisodeStep, Trajectory, utc_now
 from ..env.registry import get_environment_spec, make_env
-from ..serving import ModelServing
+from ..serving import ModelResponseFormatError, ModelServing
 from .host import HostPolicy
 from .tool_loop import ToolLoop
 
@@ -195,6 +195,105 @@ class AgentRollout:
             step_limit=self.config.max_steps,
         )
 
+    def run_with_response_prefix(
+        self,
+        task: Task,
+        responses: Sequence[str],
+        *,
+        continuation_messages: Sequence[Message] = (),
+        compact_live_context: bool = False,
+    ) -> Trajectory:
+        """Restore an episode through recorded actions, then continue live.
+
+        Prefix responses pass through the same parser, schema validation, tool
+        dispatcher, and fresh Env lifecycle as ordinary model output.  No live
+        model request is made until every recorded response has executed.
+        """
+
+        prefix = tuple(responses)
+        if any(not isinstance(item, str) or not item for item in prefix):
+            raise TypeError("response prefix must contain non-empty strings")
+        continuation = tuple(continuation_messages)
+        if any(not isinstance(item, Message) for item in continuation):
+            raise TypeError("continuation_messages must contain Message values")
+        if len(prefix) >= self.config.max_steps:
+            raise ValueError("response prefix leaves no step budget for continuation")
+        iterator = iter(prefix)
+        live_context_start: int | None = None
+        prefix_observation: Message | None = None
+
+        def prefixed_live_response(
+            messages: Sequence[Message],
+            request_options: Mapping[str, Any] | None,
+        ) -> tuple[str, float]:
+            try:
+                return next(iterator), 0.0
+            except StopIteration:
+                nonlocal live_context_start, prefix_observation
+                request_messages = messages
+                if compact_live_context:
+                    if live_context_start is None:
+                        live_context_start = len(messages) - len(continuation)
+                        prefix_messages = messages[:live_context_start]
+                        prefix_observation = next(
+                            (
+                                message for message in reversed(prefix_messages)
+                                if message.role == "observation"
+                                and any(
+                                    isinstance(item, ImageContent)
+                                    for item in message.content
+                                )
+                            ),
+                            None,
+                        )
+                        if prefix_observation is None:
+                            prefix_observation = next(
+                                (
+                                    message
+                                    for message in reversed(prefix_messages)
+                                    if message.role == "observation"
+                                ),
+                                None,
+                            )
+                    compact: list[Message] = [
+                        messages[0],
+                        *messages[1:1 + len(task.messages)],
+                    ]
+                    if prefix_observation is not None:
+                        compact.append(prefix_observation)
+                    compact.extend(messages[live_context_start:])
+                    request_messages = tuple(compact)
+                before = time.perf_counter()
+                response = self.sample_responses(
+                    request_messages, 1, request_options=request_options
+                )[0]
+                return response, (time.perf_counter() - before) * 1000
+
+        trajectory = self._run_with_response_provider(
+            task,
+            prefixed_live_response,
+            exhaustion_reason="max_steps",
+            step_limit=self.config.max_steps,
+            continuation_messages=continuation,
+            continuation_step=len(prefix) + 1,
+        )
+        return Trajectory(
+            episode_id=trajectory.episode_id,
+            task_id=trajectory.task_id,
+            env_id=trajectory.env_id,
+            messages=trajectory.messages,
+            steps=trajectory.steps,
+            final_answer=trajectory.final_answer,
+            termination_reason=trajectory.termination_reason,
+            started_at=trajectory.started_at,
+            completed_at=trajectory.completed_at,
+            metadata={
+                **dict(trajectory.metadata),
+                "response_prefix_steps": len(prefix),
+                "response_prefix_compact_live_context": compact_live_context,
+            },
+        )
+
     def run_responses(
         self,
         task: Task,
@@ -230,6 +329,8 @@ class AgentRollout:
         *,
         exhaustion_reason: str,
         step_limit: int,
+        continuation_messages: Sequence[Message] = (),
+        continuation_step: int | None = None,
     ) -> Trajectory:
         if not isinstance(task, Task):
             raise TypeError("AgentRollout.run requires a Task")
@@ -251,6 +352,25 @@ class AgentRollout:
             format_retries_used = 0
             format_retries_recovered = 0
             tool_names: tuple[str, ...] = ()
+
+            def request_response(
+                request_messages: Sequence[Message],
+                request_options: Mapping[str, Any] | None,
+            ) -> tuple[str, float] | None:
+                """Map provider-level format failures into action-format retries.
+
+                A Gemini ``MALFORMED_FUNCTION_CALL`` contains no assistant text,
+                so it cannot reach ``parse_action`` naturally.  Represent only
+                that typed provider failure as an invalid response; the normal
+                parse-repair observation can then guide a retry.  Network, Env,
+                authentication, and arbitrary runtime errors still propagate to
+                the episode-level infrastructure-error handler.
+                """
+
+                try:
+                    return response_provider(request_messages, request_options)
+                except ModelResponseFormatError as exc:
+                    return f"[model_response_format_error] {exc}", 0.0
 
             try:
                 host_policy = HostPolicy(
@@ -302,7 +422,9 @@ class AgentRollout:
                         raise RuntimeError("Env.start must not terminate an episode")
 
                 for step_index in range(1, step_limit + 1):
-                    generated = response_provider(tuple(messages), request_options)
+                    if continuation_step == step_index:
+                        messages.extend(continuation_messages)
+                    generated = request_response(tuple(messages), request_options)
                     if generated is None:
                         break
                     response, elapsed_ms = generated
@@ -319,7 +441,9 @@ class AgentRollout:
                             Message.text("assistant", response),
                             loop.observation(loop.parse_failure(), "agent.parse"),
                         ])
-                        retried = response_provider(tuple(retry_context), request_options)
+                        retried = request_response(
+                            tuple(retry_context), request_options
+                        )
                         if retried is None:
                             break
                         response, retry_elapsed = retried

@@ -160,7 +160,9 @@ print(trajectory.steps[-1].action)
 
 `Task` is reusable: one task may produce many trajectories. Its `messages` may
 contain text and any number of images. `Scenario` is optional private runtime
-input, not a mandatory wrapper around every task.
+input, not a mandatory wrapper around every task. `judge_ref` is an optional
+public score range plus task-specific criteria; when omitted, Judge uses its
+generic rubric.
 
 ## Multimodal tasks
 
@@ -187,6 +189,12 @@ task = Task(
 Images remain first-class content blocks through rollout, Refine, Judge, and
 trajectory storage. They are not converted into text placeholders.
 
+Materialized JSON task stores may keep source documents outside the JSON body
+with confined, SHA-256-pinned `text_ref` blocks (`text/plain` or
+`text/markdown`, UTF-8, at most 512 KiB). The store resolves them to ordinary
+`TextContent` before rollout, just as `image_ref` resolves to inline
+`ImageContent`; unresolved paths never reach the model.
+
 ## The trajectory data flow
 
 DataFlow-MM-Agent follows DataFlow's composable-operator style while keeping
@@ -197,11 +205,19 @@ generation, replay, and quality evaluation as separate concerns:
   trajectory.
 - **ReplayVerify** replays stored actions in a fresh Env and, when configured,
   evaluates an independent deterministic verifier.
-- **Judge** evaluates visual reasoning quality and artifact quality. It does not
-  replace exact state verification.
+- **Judge** resolves the Task's optional `judge_ref` (or injects the generic
+  fallback), scores every configured criterion, and computes `traj_overall` as
+  the arithmetic mean of range-normalized scores. Every environment uses the
+  same rationale-and-scores response; task-specific grading rules live only
+  in the task rubric. Judge does not replace exact state verification. Rubrics over 16,000 serialized characters are evaluated one
+  criterion at a time—with the complete task rubric still injected into every
+  shard—and malformed combined verdicts fall back to the same all-or-nothing
+  shard path.
 - **Refine** receives the original task messages, visual observations, and
   failure diagnosis, then produces a new trajectory rather than mutating the old
-  one.
+  one. For stateful visual artifacts it can first replay the recorded pre-finish
+  actions in a fresh workspace, append the newest diagnosis after restoration,
+  and ask the model only for localized continuation edits.
 - **Filter and Select** keep the trajectories that meet the pipeline's quality
   and diversity requirements.
 

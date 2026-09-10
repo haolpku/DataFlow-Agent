@@ -39,10 +39,8 @@ Python 包：`dataflow_mm_agent` · Python `>=3.10` · Apache-2.0
 5. **为什么需要确定性 Verifier**——
    [查看一条获得 Judge 1.0 分、却没有通过精确状态验证的轨迹](examples/showcases/05_why_deterministic_verifier.md)。
 
-Showcase 页面完全使用 GitHub 原生 Markdown、全轨迹 GIF 预览、归属于各工具
-步骤的普通图片资源和精简 JSON。它们不依赖 JavaScript，也不会把图片以 base64
-形式嵌入庞大的 HTML 文件。所有产物和运行元数据可从
-[Showcase 索引](examples/showcases/README.md)进入。
+
+[Showcase 索引](examples/showcases/README.md)。
 
 ## 安装
 
@@ -153,7 +151,8 @@ print(trajectory.steps[-1].action)
 
 `Task` 可以复用：一个任务可以产生多条 trajectory。它的 `messages` 可以包含
 文本和任意数量的图片。`Scenario` 是可选的私有运行时输入，并不是每个任务都
-必须套用的包装层。
+必须套用的包装层。`judge_ref` 是可选的公开评分范围与任务专用评判标准；省略
+时 Judge 使用内置通用 rubric。
 
 ## 多模态任务
 
@@ -180,6 +179,12 @@ task = Task(
 图片在 rollout、Refine、Judge 和 trajectory 存储的整个流程中始终是一等内容块，
 不会被转换成文本占位符。
 
+物化 JSON task store 可以用受目录约束且带 SHA-256 的 `text_ref` 保存 JSON
+之外的来源文档（仅支持 UTF-8 `text/plain` 或 `text/markdown`，上限 512 KiB）。
+store 会在 rollout 前把它解析为普通 `TextContent`，就像把 `image_ref` 解析成
+内联 `ImageContent`；路径缺失、越界或哈希不符会直接拒绝任务，不会交给模型自行
+联网补资源。
+
 ## Trajectory 数据流
 
 DataFlow-MM-Agent 沿用 DataFlow 的可组合算子风格，同时将生成、重放和质量评估
@@ -188,9 +193,16 @@ DataFlow-MM-Agent 沿用 DataFlow 的可组合算子风格，同时将生成、�
 - **Generate** 运行共享的多模态工具循环，并记录尚未评分的 trajectory。
 - **ReplayVerify** 在全新的 Env 中重放已存储的动作；如果任务配置了确定性
   verifier，还会独立执行该 verifier。
-- **Judge** 评估视觉推理和产物质量，但不能代替精确的状态验证。
+- **Judge** 解析 Task 的可选 `judge_ref`（缺省时注入通用 rubric），逐项评分，
+  将各项按配置范围归一化后取算术平均作为 `traj_overall`。所有环境使用统一的
+  rationale + scores 输出协议；任务特有评分标准只写在 task rubric 中。Judge
+  不能代替精确的状态验证。序列化后超过 16,000 字符的 rubric 会逐 criterion
+  分片评判，每个分片仍注入完整 task rubric；组合 verdict 解析失败时也走同一条
+  全有或全无的分片回退路径，避免用残缺标准计算均分。
 - **Refine** 接收原始任务消息、视觉观察和失败诊断，并产生一条新 trajectory，
-  而不是修改原 trajectory。
+  而不是修改原 trajectory。对于有状态的视觉产物，它可以先在新 workspace 中
+  重放原 trajectory 的 `finish` 前动作，恢复成品后再追加最新诊断，让模型只做
+  局部续写与修复。
 - **Filter 和 Select** 保留符合流程质量与多样性要求的 trajectory。
 
 开放式创作任务不需要虚构一个 verifier。它们的 ReplayVerify 状态为

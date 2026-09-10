@@ -43,6 +43,32 @@ final answer as soon as you can support it.
 
 Task: {task}"""
 
+RESTORED_STATE_GUIDANCE = """
+
+The current artifact has already been restored by replaying the recorded actions.
+Treat the latest Judge feedback above as unresolved. Inspect and repair this current
+artifact with localized edits; do not recreate or reset it unless it is genuinely
+unrecoverable. If a duplicated connector label itself causes a collision while its
+destination already states the full branch meaning, removing that redundant label
+is a valid localized repair. Save and inspect the result after the last edit before
+finishing. In PPTX, if a larger font still renders too small because auto-fit shrinks
+it, call manage_shape.update to enlarge the existing text box and/or set
+auto_fit=false before applying format_runs. Use manage_shape.delete for incorrect
+decorative or duplicate shapes, then inspect shape indexes again because deletion
+renumbers later shapes.
+"""
+
+RESTORED_STATE_SYSTEM_CONSTRAINT = """HARD CONTINUATION CONSTRAINT:
+The existing artifact has already been restored in the live environment. You
+must repair that current artifact in place. Never call create_presentation,
+create_presentation_from_template, create_presentation_from_templates,
+auto_generate_presentation, or any other reset/recreation operation. Inspect
+shape indexes, make localized edits, call view_all, save the repaired artifact,
+then finish. For PPTX container/geometry defects, use manage_shape.update or
+manage_shape.delete rather than layering a replacement deck. This constraint
+overrides any impulse to rebuild from scratch.
+"""
+
 
 @OPERATOR_REGISTRY.register()
 class AgentMMTrajectoryRefiner(OperatorABC):
@@ -66,6 +92,7 @@ class AgentMMTrajectoryRefiner(OperatorABC):
         validate_tool_names: bool = True,
         structured_actions: bool = False,
         action_format_retries: int = 0,
+        replay_original_prefix: bool = False,
         include_host_tools: bool = True,
         workspace_root: str | Path | None = None,
         workspace_retention: str = "ephemeral",
@@ -98,6 +125,7 @@ class AgentMMTrajectoryRefiner(OperatorABC):
         self.max_diagnosis_chars = max_diagnosis_chars
         self.validate_tool_names = validate_tool_names
         self.include_host_tools = include_host_tools
+        self.replay_original_prefix = replay_original_prefix
         self._generator = AgentMMExploreGenerator(
             serving=llm_serving,
             task_resolver=task_resolver,
@@ -204,33 +232,106 @@ class AgentMMTrajectoryRefiner(OperatorABC):
             images = images[-self.max_prior_images:]
         return images
 
-    def _refine_instruction_content(
+    @staticmethod
+    def _response_prefix(trajectory: dict[str, Any]) -> tuple[str, ...]:
+        """Return executable pre-finish responses from a canonical trajectory."""
+
+        messages = trajectory.get("messages")
+        if not isinstance(messages, list):
+            raise ValueError("trajectory messages must be a list")
+        responses: list[str] = []
+        for step in steps(trajectory):
+            if step.get("parse_error"):
+                continue
+            action = step.get("action")
+            if not isinstance(action, dict):
+                continue
+            if action.get("tool") == "finish":
+                break
+            message_index = step.get("response_message_index")
+            if (
+                not isinstance(message_index, int)
+                or not 0 <= message_index < len(messages)
+            ):
+                raise ValueError("trajectory step has an invalid response message")
+            content = messages[message_index].get("content")
+            if not isinstance(content, list):
+                raise ValueError("trajectory response content must be a list")
+            text = "".join(
+                str(item.get("text") or "")
+                for item in content
+                if isinstance(item, dict) and item.get("type") == "text"
+            )
+            if not text:
+                raise ValueError("trajectory response contains no text")
+            responses.append(text)
+        return tuple(responses)
+
+    def _refine_instruction_messages(
         self,
         trajectory: dict[str, Any],
         *,
         diagnosis: str,
         task: str,
-    ) -> tuple[Content, ...]:
-        content: list[Content] = [TextContent(REFINE_CONTEXT_HEADER.format(
-            prior=self._render_prior(trajectory),
-            diagnosis=diagnosis,
-        ))]
-        images = self._prior_images(trajectory)
+        state_restored: bool = False,
+    ) -> tuple[Message, ...]:
+        """Build repair context without reclassifying screenshots as task refs.
+
+        Task-authored reference images stay in the original user message.  Prior
+        trajectory screenshots use the observation role so serving adapters can
+        preserve the task refs first and spend the remaining request budget on
+        the newest visual checkpoints, exactly as they do during rollout.
+        """
+
+        messages: list[Message] = []
+        if state_restored:
+            messages.append(Message.text(
+                "system",
+                RESTORED_STATE_SYSTEM_CONSTRAINT,
+                name="trajectory_refiner.restored_state_constraint",
+            ))
+        messages.append(Message.text(
+            "user",
+            REFINE_CONTEXT_HEADER.format(
+                prior=self._render_prior(trajectory),
+                diagnosis=diagnosis,
+            ),
+            name="trajectory_refiner.diagnosis",
+        ))
+        # A replay-restored repair already receives the freshly replayed final
+        # observation immediately before these continuation messages.  Do not
+        # append older trajectory screenshots afterward, or provider-level
+        # newest-image capping would evict that higher-value restored state.
+        images = [] if state_restored else self._prior_images(trajectory)
         if images:
-            content.append(TextContent(
+            visual_context: list[Content] = [TextContent(
                 "--- SELECTED PREVIOUS OBSERVATION IMAGES "
                 "(chronological order) ---"
-            ))
+            )]
             for step_index, image in images:
-                content.extend((
+                visual_context.extend((
                     TextContent(f"Previous observation image from step {step_index}:"),
                     image,
                 ))
-            content.append(TextContent(
+            visual_context.append(TextContent(
                 "--- END SELECTED PREVIOUS OBSERVATION IMAGES ---"
             ))
-        content.append(TextContent(REFINE_CONTEXT_FOOTER.format(task=task)))
-        return tuple(content)
+            messages.append(Message.of(
+                "observation",
+                visual_context,
+                name="trajectory_refiner.previous_observations",
+            ))
+        final_instruction: list[Content] = [
+            TextContent(REFINE_CONTEXT_FOOTER.format(task=task))
+        ]
+        if state_restored:
+            final_instruction.append(TextContent(RESTORED_STATE_GUIDANCE))
+        messages.append(Message.of(
+            "user",
+            final_instruction,
+            name="trajectory_refiner.instruction",
+        ))
+        return tuple(messages)
 
     def _should_refine(self, trajectory: dict[str, Any] | None, score: Any) -> bool:
         if trajectory is None:
@@ -249,6 +350,7 @@ class AgentMMTrajectoryRefiner(OperatorABC):
         value: Any,
         score: Any,
         judge_diagnosis: Any = None,
+        earliest_original: Any = None,
     ) -> dict[str, Any]:
         trajectory = as_trajectory_dict(value)
         if not self._should_refine(trajectory, score):
@@ -279,21 +381,26 @@ class AgentMMTrajectoryRefiner(OperatorABC):
                 feedback = feedback[:self.max_diagnosis_chars] + "...[truncated]"
             diagnosis = f"{diagnosis}\nJudge feedback: {feedback}"
         try:
-            refined_task = replace(
-                task,
-                messages=(
-                    *task.messages,
-                    Message.of(
-                        "user",
-                        self._refine_instruction_content(
-                            trajectory,
-                            diagnosis=diagnosis,
-                            task=original_task,
-                        ),
-                    ),
-                ),
+            corrections = self._refine_instruction_messages(
+                trajectory,
+                diagnosis=diagnosis,
+                task=original_task,
+                state_restored=self.replay_original_prefix,
             )
-            repaired = self._generator._runner().run(refined_task)
+            runner = self._generator._runner()
+            repaired = (
+                runner.run_with_response_prefix(
+                    task,
+                    self._response_prefix(trajectory),
+                    continuation_messages=corrections,
+                    compact_live_context=True,
+                )
+                if self.replay_original_prefix
+                else runner.run(replace(
+                    task,
+                    messages=(*task.messages, *corrections),
+                ))
+            )
         except Exception as exc:
             self.logger.error(f"[AgentMMTrajectoryRefiner] refine failed: {exc}")
             return {
@@ -306,7 +413,11 @@ class AgentMMTrajectoryRefiner(OperatorABC):
         improved = repaired.success and not normal_success(trajectory)
         return {
             "trajectory": repaired.to_dict(),
-            "original": trajectory,
+            "original": (
+                earliest_original
+                if as_trajectory_dict(earliest_original) is not None
+                else trajectory
+            ),
             "refined": True,
             "note": f"refined: {diagnosis}",
             "improved": improved,
@@ -338,10 +449,22 @@ class AgentMMTrajectoryRefiner(OperatorABC):
             else [None] * len(dataframe)
         )
         values = dataframe[input_key].tolist()
+        earliest_originals = (
+            dataframe[self.original_key].tolist()
+            if self.original_key is not None
+            and self.original_key in dataframe.columns
+            else [None] * len(dataframe)
+        )
         results: list[dict[str, Any] | None] = [None] * len(values)
         with ThreadPoolExecutor(max_workers=self.max_workers) as pool:
             futures = {
-                pool.submit(self._refine_one, value, score, diagnoses[index]): index
+                pool.submit(
+                    self._refine_one,
+                    value,
+                    score,
+                    diagnoses[index],
+                    earliest_originals[index],
+                ): index
                 for index, (value, score) in enumerate(zip(values, scores))
             }
             for future in as_completed(futures):

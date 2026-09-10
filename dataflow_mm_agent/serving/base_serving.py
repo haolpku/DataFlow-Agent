@@ -8,6 +8,10 @@ from typing import Any, Mapping, Sequence
 from ..contracts import Message
 
 
+class ModelResponseFormatError(RuntimeError):
+    """The provider returned a response, but not usable assistant text."""
+
+
 class ModelServing(ABC):
     @abstractmethod
     def generate_messages(
@@ -48,4 +52,4 @@ class ModelServing(ABC):
         return None
 
 
-__all__ = ["ModelServing"]
+__all__ = ["ModelResponseFormatError", "ModelServing"]

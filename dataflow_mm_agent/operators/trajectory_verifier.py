@@ -96,9 +96,15 @@ class AgentMMReplayVerifier(OperatorABC):
         finalized = [item for item in results if item is not None]
         dataframe[output_key] = finalized
         storage.write(dataframe)
-        passed = sum(item["status"] == "passed" for item in finalized)
+        status_counts: dict[str, int] = {}
+        for item in finalized:
+            status = str(item.get("status") or "unknown")
+            status_counts[status] = status_counts.get(status, 0) + 1
+        summary = ", ".join(
+            f"{status}={count}" for status, count in sorted(status_counts.items())
+        )
         self.logger.info(
-            f"[AgentMMReplayVerifier] {passed}/{len(finalized)} passed strict replay"
+            f"[AgentMMReplayVerifier] {len(finalized)} result(s): {summary}"
         )
         return [output_key]
 

@@ -53,7 +53,9 @@ CASE_CONFIG: dict[str, dict[str, Any]] = {
         "title": "Document pages to an editable diagram",
         "summary": (
             "The agent synthesizes two incident-runbook pages into one operational "
-            "flow, observes a legibility problem, and repairs the affected nodes."
+            "flow. A pixel-level Judge catches clipped labels and ambiguous routing; "
+            "Refine restores the existing artifact and repairs it through fresh "
+            "visual observations."
         ),
         "animation_speed": 1.0,
     },
@@ -327,6 +329,9 @@ def compact_trajectory(
         "replay_verification": row.get("replay_verification"),
         "judge": {
             "overall": row.get("traj_overall"),
+            "judge_ref": copy.deepcopy(row.get("judge_ref")),
+            "scores": copy.deepcopy(row.get("traj_judge_scores")),
+            "normalized_scores": copy.deepcopy(row.get("traj_judge_normalized_scores")),
             "goal_achievement": row.get("traj_goal_achievement"),
             "tool_use": row.get("traj_tool_use"),
             "efficiency": row.get("traj_efficiency"),
@@ -435,6 +440,31 @@ def trajectory_stage_lines(
     ])
     if replay_detail:
         lines.append(f"- Replay detail: {replay_detail}")
+    rubric = row.get("judge_ref")
+    scores = row.get("traj_judge_scores")
+    normalized = row.get("traj_judge_normalized_scores") or {}
+    if isinstance(rubric, Mapping) and isinstance(scores, Mapping):
+        score_range = rubric.get("score_range") or {}
+        lines.extend([
+            "",
+            f"Task-owned rubric range: {score_range.get('min')}–{score_range.get('max')}. "
+            "Overall is the arithmetic mean of range-normalized criterion scores.",
+            "",
+            "| Criterion | Raw score | Normalized score |",
+            "| --- | ---: | ---: |",
+        ])
+        for criterion in rubric.get("criteria") or ():
+            key = criterion["id"]
+            lines.append(f"| `{key}` | {scores.get(key, 'n/a')} | {normalized.get(key, 'n/a')} |")
+        lines.extend([
+            "",
+            "<details>",
+            "<summary>Task judge_ref used for this evaluation</summary>",
+            "",
+            "<pre><code>" + html.escape(json.dumps(rubric, ensure_ascii=False, indent=2)) + "</code></pre>",
+            "",
+            "</details>",
+        ])
     rationale = row.get("traj_rationale")
     if rationale:
         lines.extend([

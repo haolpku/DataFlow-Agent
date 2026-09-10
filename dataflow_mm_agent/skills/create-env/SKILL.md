@@ -44,7 +44,9 @@ registration and handler code, licenses, tests, and dependency manifests.
 Read [references/contracts-and-layout.md](references/contracts-and-layout.md).
 Every Env implements only `tools()` and `call()`. Add `start(init, workspace)`
 only for episode initialization and `close()` only for cleanup. State and
-snapshots remain optional implementation capabilities.
+snapshots remain optional implementation capabilities; `snapshot()` and
+`verify_task(binding, rollout)` follow the signatures documented in
+[references/contracts-and-layout.md](references/contracts-and-layout.md).
 
 `EnvironmentSpec` is solver-facing registration metadata, not an init/state
 schema. Register only the factory and description. Never add runtime `finish`.
@@ -89,9 +91,11 @@ Tasks without a verifier must yield `not_applicable` without Env creation.
 
 Expose an idempotent `register()` through the
 `dataflow_mm_agent.environments` entry-point group. Include task JSON/assets in
-wheel and sdist. Read [references/validation.md](references/validation.md) and
-run applicable static, domain, replay, isolation, package, privacy, and live
-canary gates.
+wheel and sdist. For process-isolated deployment, document the required
+environment variables and the worker interpreter setup as described in
+[references/contracts-and-layout.md](references/contracts-and-layout.md).
+Read [references/validation.md](references/validation.md) and run applicable
+static, domain, replay, isolation, package, privacy, and live canary gates.
 
 ## Completion report
 

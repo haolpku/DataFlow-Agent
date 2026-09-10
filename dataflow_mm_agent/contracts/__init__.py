@@ -29,6 +29,8 @@ from .environment import (
     start_env,
 )
 from .task import (
+    JudgeCriterion,
+    JudgeReference,
     TASK_SCHEMA_VERSION,
     ReplayVerifierFactory,
     ReplayVerifierResolver,
@@ -45,6 +47,8 @@ __all__ = [
     "EnvironmentSpec",
     "EpisodeStep",
     "ImageContent",
+    "JudgeCriterion",
+    "JudgeReference",
     "Message",
     "ReplayVerifier",
     "ReplayVerifierFactory",

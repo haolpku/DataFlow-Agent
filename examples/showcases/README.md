@@ -14,9 +14,9 @@ or embedded base64 images.
 > trajectory. Refine creates a new rollout and does not overwrite the original.
 
 For before/after comparisons, the original and refined rollouts have separate
-full-trajectory animations. The PowerPoint case therefore shows all 61 original
-visual observations and all 57 refined visual observations in both overview and
-step-level form.
+full-trajectory animations. The PowerPoint case is an Original-only success:
+its 70-step rollout scored 0.9643 against the task-owned rubric, passed the 0.75
+gate directly, and did not enter Refine.
 
 <table>
   <tr>
@@ -37,14 +37,19 @@ step-level form.
 | ---: | --- | --- | --- |
 | 1 | [Image-grounded olympiad geometry](01_geometry_proof.md) | 12-step progressive construction and proof | ReplayVerify passed · Judge 1.00 |
 | 2 | [Visual planning in a Pyxel game](02_pixel_game.md) | five gems and goal within a 40-move budget | ReplayVerify passed · Judge 0.85 |
-| 3 | [Editable PowerPoint reconstruction](03_pptx.md) | original 64 actions → refined 60 actions | Judge 0.35 → 0.98 |
-| 4 | [Document pages to an editable diagram](04_diagram.md) | runbook synthesis with observation-driven layout repair | Judge 0.98 |
+| 3 | [Editable PowerPoint reconstruction](03_pptx.md) | original 70 actions; no Refine | task-owned rubric Judge 0.9643 ≥ 0.75 |
+| 4 | [Document pages to an editable diagram](04_diagram.md) | last Refine pass: 38-action input → 45-action result | archived Judge 0.75 → 0.95 |
 | 5 | [Why a deterministic verifier is necessary](05_why_deterministic_verifier.md) | original 8 actions → refined 4 actions, both replayed | Judge 0.30 → 1.00; verifier still failed |
 
 The PPT and diagram cases are open-ended authoring tasks. Their
 ReplayVerify status is `not_applicable`; this is intentional rather than a
 missing implementation. Geometry and game tasks have meaningful exact state
 contracts and therefore use deterministic replay verification.
+
+The diagram example shows the final v23 Refine pass, including its actual input
+trajectory (itself a previous refinement). Its historical, model-reported Judge
+scores predate the current task-owned normalized-mean protocol and are not
+directly comparable to the new PPTX score. Manual polishing is not included.
 
 ## Output artifacts
 

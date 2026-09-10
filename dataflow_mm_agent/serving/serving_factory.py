@@ -21,6 +21,7 @@ def create_model_serving(
     temperature: float | None = None,
     max_workers: int = 1,
     max_images_per_request: int | None = 8,
+    request_options: Mapping[str, object] | None = None,
 ) -> ModelServing:
     normalized = backend.strip().lower().replace("-", "_")
     if normalized in {"openai", "openai_compatible"}:
@@ -33,6 +34,7 @@ def create_model_serving(
             temperature=temperature,
             max_workers=max_workers,
             max_images_per_request=max_images_per_request,
+            request_options=request_options,
         )
     if normalized == "gemini":
         if not api_key.strip() or api_key == "EMPTY":
@@ -46,6 +48,7 @@ def create_model_serving(
             temperature=temperature,
             max_workers=max_workers,
             max_images_per_request=max_images_per_request,
+            request_options=request_options,
         )
     raise ValueError(f"unsupported serving backend: {backend!r}")
 

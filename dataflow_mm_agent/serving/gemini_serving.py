@@ -12,7 +12,7 @@ from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 from ..contracts import ImageContent, Message, TextContent
-from .base_serving import ModelServing
+from .base_serving import ModelResponseFormatError, ModelServing
 
 
 GeminiTransport = Callable[
@@ -36,6 +36,7 @@ class GeminiServing(ModelServing):
         temperature: float | None = None,
         max_workers: int = 1,
         max_images_per_request: int | None = 8,
+        malformed_response_retries: int = 2,
         request_options: Mapping[str, Any] | None = None,
         transport: GeminiTransport | None = None,
     ):
@@ -49,6 +50,8 @@ class GeminiServing(ModelServing):
             raise ValueError("max_workers must be positive")
         if max_images_per_request is not None and max_images_per_request < 1:
             raise ValueError("max_images_per_request must be positive or None")
+        if malformed_response_retries < 0:
+            raise ValueError("malformed_response_retries must be non-negative")
 
         self.model = model
         self.base_url = base_url
@@ -58,6 +61,7 @@ class GeminiServing(ModelServing):
         self.temperature = temperature
         self.max_workers = max_workers
         self.max_images_per_request = max_images_per_request
+        self.malformed_response_retries = malformed_response_retries
         self.request_options = dict(request_options or {})
         self.transport = transport or self._post_json
 
@@ -180,7 +184,11 @@ class GeminiServing(ModelServing):
         return request
 
     @staticmethod
-    def _response_text(response: Mapping[str, Any]) -> str:
+    def _response_text(
+        response: Mapping[str, Any],
+        *,
+        allow_structured_thought_fallback: bool = False,
+    ) -> str:
         candidates = response.get("candidates")
         if not isinstance(candidates, Sequence) or not candidates:
             feedback = response.get("promptFeedback")
@@ -197,9 +205,35 @@ class GeminiServing(ModelServing):
             for part in parts
             if isinstance(part, Mapping) and not bool(part.get("thought"))
         )
-        if not text:
-            raise RuntimeError("Gemini response contains no text")
-        return text
+        if text:
+            return text
+
+        # Some Gemini gateways occasionally mark the complete JSON response as
+        # a thought part and omit the ordinary text part.  Never expose or run
+        # arbitrary hidden reasoning: this fallback is enabled only for a
+        # schema-constrained request and only accepts an exact action object.
+        thought_text = "".join(
+            str(part.get("text") or "")
+            for part in parts
+            if isinstance(part, Mapping) and bool(part.get("thought"))
+        ).strip()
+        if allow_structured_thought_fallback and thought_text:
+            try:
+                action = json.loads(thought_text)
+            except json.JSONDecodeError:
+                action = None
+            if (
+                isinstance(action, Mapping)
+                and isinstance(action.get("tool"), str)
+                and isinstance(action.get("args"), Mapping)
+            ):
+                return thought_text
+
+        finish_reason = candidate.get("finishReason")
+        raise ModelResponseFormatError(
+            "Gemini response contains no ordinary text"
+            f" (finish_reason={finish_reason!r}, thought_chars={len(thought_text)})"
+        )
 
     @staticmethod
     def _post_json(
@@ -356,13 +390,24 @@ class GeminiServing(ModelServing):
         payload.update(per_request)
         if generation_config:
             payload["generationConfig"] = generation_config
-        response = self.transport(
-            self.endpoint(self.base_url, self.model),
-            self.headers,
-            payload,
-            self.timeout,
-        )
-        return self._response_text(response)
+        for attempt in range(self.malformed_response_retries + 1):
+            response = self.transport(
+                self.endpoint(self.base_url, self.model),
+                self.headers,
+                payload,
+                self.timeout,
+            )
+            try:
+                return self._response_text(
+                    response,
+                    allow_structured_thought_fallback=bool(structured),
+                )
+            except ModelResponseFormatError:
+                if (
+                    attempt >= self.malformed_response_retries
+                ):
+                    raise
+        raise AssertionError("unreachable")
 
     def generate_messages(
         self,

@@ -5,14 +5,21 @@ from __future__ import annotations
 import json
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any
+from typing import Any, Mapping
 
 from dataflow import get_logger
 from dataflow.core import OperatorABC
 from dataflow.utils.registry import OPERATOR_REGISTRY
 from dataflow.utils.storage import DataFlowStorage
 
-from ..contracts import ImageContent, Message, TextContent
+from ..contracts import (
+    ImageContent,
+    JudgeCriterion,
+    JudgeReference,
+    Message,
+    TaskResolver,
+    TextContent,
+)
 from ..serving import ModelServing
 from .utils.trajectory import (
     as_trajectory_dict,
@@ -22,7 +29,6 @@ from .utils.trajectory import (
     step_thought,
     step_tool_ok,
     steps,
-    task_text,
 )
 
 
@@ -32,30 +38,91 @@ Agent 在受控环境中逐步调用工具完成任务，最后给出回答。�
 是该次工具调用返回的真实多模态 observation。请依据工具调用与 observation
 中的证据进行评审，不能仅凭 final answer 的自我陈述判断任务已完成。
 
-请分别对以下四个维度给出 1 到 5 的整数分（5 分最好）：
-- goal_achievement：任务是否被正确、完整地解决，真实证据是否足够。
-- efficiency：步骤是否有目的，是否存在浪费、重复或循环操作。
-- coherence：推理是否紧跟 observation，是否存在幻觉或前后矛盾。
-- tool_use：工具选择是否合理，调用参数是否正确。
+用户消息中会固定提供一个 judge_ref，其中 score_range 定义每项允许的分数范围，
+criteria 定义本次必须逐项评判的标准。默认必须为每个 criterion id 给出一个范围
+内的数值分数，不得遗漏、增加或改名。若用户消息明确包含 JUDGE SHARD，则完整
+judge_ref 仍是唯一标准，但本次只评判并输出 shard 指定的 criterion id，其他项由
+独立请求评判。各项等权；不要自行计算或输出 overall，调用方会按 score_range 将
+每项归一化到 0 到 1 后取算术平均。
 
 务必先在 rationale 中完成任务要求、计算、工具参数和 observation 的核验，再
 输出任何数值评分。所有分数必须建立在完整分析之上，并与 rationale 的最终结论
 一致；不要在 rationale 中推翻已经给出的判断。
 
-overall 为 0 到 1 的浮点数。只输出一个 JSON 对象，不要输出 Markdown 代码块
-或额外文字，并严格按照以下字段顺序输出：先 rationale，再输出四项评分，最后
-输出 overall。rationale 使用中文：
+评分范围和评判标准以 task judge_ref 为准，输出 rubric 原始尺度的分数。
+
+只输出一个 JSON 对象，不要输出 Markdown 代码块或额外文字。严格先输出中文
+rationale，再输出 scores 对象：
 {"rationale": "<完整核验过程与最终结论>",
- "goal_achievement": <1-5>, "efficiency": <1-5>, "coherence": <1-5>,
- "tool_use": <1-5>, "overall": <0-1 float>}
+ "scores": {"<criterion_id>": <score>, "...": <score>}}
 """
 
-AXES = ("goal_achievement", "efficiency", "coherence", "tool_use")
+GENERIC_JUDGE_REF = JudgeReference(
+    score_min=1,
+    score_max=5,
+    criteria=(
+        JudgeCriterion(
+            "goal_achievement",
+            "任务是否被正确、完整地解决，且真实工具结果与 observation 证据充分。",
+        ),
+        JudgeCriterion(
+            "efficiency",
+            "步骤是否有目的，是否避免浪费、无效重复和循环操作。",
+        ),
+        JudgeCriterion(
+            "coherence",
+            "推理是否紧跟 observation，且不存在幻觉、跳步或前后矛盾。",
+        ),
+        JudgeCriterion(
+            "tool_use",
+            "工具选择是否合理，调用参数是否正确，并正确处理工具错误。",
+        ),
+    ),
+)
+AXES = GENERIC_JUDGE_REF.criterion_ids
+DEFAULT_MAX_COMBINED_RUBRIC_CHARS = 16_000
+
+
+def _judge_response_options(
+    rubric: JudgeReference,
+) -> dict[str, Any]:
+    score_properties = {
+        criterion.id: {
+            "type": "number",
+            "minimum": rubric.score_min,
+            "maximum": rubric.score_max,
+        }
+        for criterion in rubric.criteria
+    }
+    result = {
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "trajectory_quality_verdict",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "rationale": {"type": "string"},
+                        "scores": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "properties": score_properties,
+                            "required": list(rubric.criterion_ids),
+                        },
+                    },
+                    "required": ["rationale", "scores"],
+                },
+            },
+        },
+    }
+    return result
 
 
 @OPERATOR_REGISTRY.register()
 class AgentMMTrajectoryQualityEvaluator(OperatorABC):
-    """LLM/VLM-as-judge scoring with the upstream four-axis rubric."""
+    """LLM/VLM Judge with Task rubrics and deterministic score aggregation."""
 
     def __init__(
         self,
@@ -64,46 +131,116 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
         max_observation_chars: int = 1500,
         system_prompt: str | None = None,
         score_prefix: str = "traj_",
+        task_resolver: TaskResolver | None = None,
+        max_combined_rubric_chars: int | None = (
+            DEFAULT_MAX_COMBINED_RUBRIC_CHARS
+        ),
     ):
+        if (
+            max_combined_rubric_chars is not None
+            and max_combined_rubric_chars < 1
+        ):
+            raise ValueError(
+                "max_combined_rubric_chars must be positive or None"
+            )
         self.logger = get_logger()
         self.llm_serving = llm_serving
+        self.task_resolver = task_resolver
         self.max_workers = max_workers
         self.max_observation_chars = max_observation_chars
         self.system_prompt = system_prompt or JUDGE_SYSTEM_PROMPT
         self.score_prefix = score_prefix
+        self.max_combined_rubric_chars = max_combined_rubric_chars
 
     @staticmethod
     def get_desc(lang: str = "zh") -> str:
         if lang == "zh":
-            return "使用 VLM-as-judge 从目标达成、效率、连贯性和工具使用四维评价多模态轨迹。"
-        return "VLM-as-judge trajectory scorer using the official four-axis rubric."
+            return "按 Task judge_ref 逐项评分并归一化取均值；缺省时使用通用四维 rubric。"
+        return (
+            "Scores each Task judge_ref criterion and averages normalized "
+            "scores, with a generic four-axis fallback."
+        )
+
+    @staticmethod
+    def _initial_task_text(trajectory: Mapping[str, Any]) -> str:
+        """Return the original user instruction, excluding Refine prompts."""
+
+        for raw in trajectory.get("messages") or []:
+            if not isinstance(raw, Mapping) or raw.get("role") != "user":
+                continue
+            values = [
+                str(item.get("text") or "")
+                for item in raw.get("content") or []
+                if isinstance(item, Mapping) and item.get("type") == "text"
+            ]
+            text = "\n".join(value for value in values if value)
+            if text:
+                return text
+        return ""
 
     def _judge_messages(
         self,
         trajectory: dict[str, Any],
-        rubric: Any | None = None,
+        rubric: JudgeReference,
         replay_verification: Any | None = None,
+        *,
+        focused_criterion_ids: tuple[str, ...] | None = None,
     ) -> tuple[Message, ...]:
-        content: list[TextContent | ImageContent] = [
-            TextContent(f"任务：{task_text(trajectory)}\n\n轨迹步骤：\n")
-        ]
-        if rubric is not None:
-            content.append(TextContent(
-                "任务专用评审参考：\n"
-                f"{json.dumps(rubric, ensure_ascii=False, sort_keys=True)}\n"
+        if focused_criterion_ids is not None:
+            if not focused_criterion_ids:
+                raise ValueError("focused_criterion_ids must not be empty")
+            unknown = set(focused_criterion_ids).difference(rubric.criterion_ids)
+            if unknown:
+                raise ValueError(
+                    f"unknown focused criterion ids: {sorted(unknown)}"
+                )
+        header: list[TextContent | ImageContent] = [TextContent(
+            f"任务：{self._initial_task_text(trajectory)}\n\n"
+        )]
+        task_images: list[ImageContent] = []
+        for raw in trajectory.get("messages") or []:
+            if not isinstance(raw, Mapping) or raw.get("role") != "user":
+                continue
+            try:
+                message = Message.from_dict(raw)
+            except (KeyError, TypeError, ValueError):
+                continue
+            task_images.extend(
+                item for item in message.content if isinstance(item, ImageContent)
+            )
+        if task_images:
+            header.append(TextContent(
+                f"任务原始参考图共 {len(task_images)} 张，顺序与任务一致。"
+                + "\n"
+            ))
+            header.extend(task_images)
+        header.append(TextContent(
+            "\n本次固定 Judge rubric：\n"
+            f"{json.dumps(rubric.to_dict(), ensure_ascii=False)}\n"
+            "每项必须独立取证并评分；最终归一化均分由算子计算。\n"
+        ))
+        if focused_criterion_ids is not None:
+            header.append(TextContent(
+                "JUDGE SHARD：完整 judge_ref 仍已注入且保持权威；本次只评判并"
+                "输出以下 criterion id，禁止输出其他 id："
+                f"{json.dumps(focused_criterion_ids, ensure_ascii=False)}。\n"
             ))
         if replay_verification is not None:
-            content.append(TextContent(
+            header.append(TextContent(
                 "独立 ReplayVerify 结果：\n"
                 f"{json.dumps(replay_verification, ensure_ascii=False, sort_keys=True)}\n"
                 "passed/failed 只表示精确重放后的 Task verifier 结论；"
                 "diverged/error/not_applicable 不应被解释为任务已通过。\n\n"
             ))
         else:
-            content.append(TextContent(
+            header.append(TextContent(
                 "本次评审没有提供 ReplayVerify 结果。请根据任务、工具调用和"
                 "真实 observation 判断是否完成，不能只相信 final answer。\n\n"
             ))
+        messages: list[Message] = [
+            Message.text("system", self.system_prompt),
+            Message.of("user", header),
+        ]
         for index, step in enumerate(steps(trajectory), start=1):
             action = step.get("action") or {}
             tool = action.get("tool")
@@ -115,29 +252,36 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
                 flag = " [INVALID_TOOL]"
             elif step_tool_ok(step) is False:
                 flag = " [TOOL_ERROR]"
-            content.append(TextContent(
+            messages.append(Message.text(
+                "user",
                 f"{index}. 推理={step_thought(step)!r} 工具={tool} "
                 f"参数={json.dumps(args, ensure_ascii=False)}{flag}\n"
-                "真实 observation：\n"
+                "真实 observation 如下："
             ))
+            observed: list[TextContent | ImageContent] = []
             for item in observation_content(trajectory, step):
                 if isinstance(item, TextContent):
                     text = item.text
                     if len(text) > self.max_observation_chars:
                         text = text[:self.max_observation_chars] + "...[truncated]"
-                    content.append(TextContent(text + "\n"))
+                    observed.append(TextContent(text + "\n"))
                 else:
-                    content.append(item)
-            content.append(TextContent("\n"))
-        content.append(TextContent(
+                    observed.append(item)
+            if observed:
+                # Preserve the semantic role so multimodal serving adapters can
+                # retain the newest visual checkpoints under an image budget.
+                messages.append(Message.of(
+                    "observation",
+                    observed,
+                    name=str(tool or "trajectory.step"),
+                ))
+        messages.append(Message.text(
+            "user",
             f"最终回答：{trajectory.get('final_answer')}\n"
             f"（轨迹报告 success={normal_success(trajectory)}，"
             f"步骤数={len(steps(trajectory))}）"
         ))
-        return (
-            Message.text("system", self.system_prompt),
-            Message.of("user", content),
-        )
+        return tuple(messages)
 
     @staticmethod
     def _extract_json(text: str) -> dict[str, Any] | None:
@@ -181,23 +325,90 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
 
     @staticmethod
     def _empty_verdict(rationale: str) -> dict[str, Any]:
-        result = {axis: None for axis in AXES}
-        result.update({"overall": None, "rationale": rationale})
-        return result
+        return {
+            "scores": {},
+            "model_scores": {},
+            "normalized_scores": {},
+            "overall": None,
+            "rationale": rationale,
+        }
+
+    @staticmethod
+    def _coerce_rubric(value: Any) -> JudgeReference:
+        if isinstance(value, JudgeReference):
+            return value
+        if isinstance(value, Mapping):
+            return JudgeReference.from_dict(value)
+        raise TypeError("judge_ref must be a JudgeReference or object")
+
+    @staticmethod
+    def _missing_rubric(value: Any) -> bool:
+        return value is None or (
+            isinstance(value, float) and value != value
+        )
+
+    def _rubric_for_row(
+        self,
+        record: Mapping[str, Any],
+        trajectory_value: Any,
+        rubric_key: str | None,
+    ) -> JudgeReference:
+        trajectory = as_trajectory_dict(trajectory_value)
+        if self.task_resolver is not None:
+            task_id = record.get("task_id")
+            env_id = record.get("env_id")
+            if trajectory is not None:
+                task_id = task_id or trajectory.get("task_id")
+                env_id = env_id or trajectory.get("env_id")
+            if not isinstance(task_id, str) or not isinstance(env_id, str):
+                raise ValueError(
+                    "task_resolver Judge requires task_id and env_id"
+                )
+            task = self.task_resolver.resolve(task_id, env_id=env_id)
+            return task.judge_ref or GENERIC_JUDGE_REF
+
+        raw = record.get(rubric_key) if rubric_key is not None else None
+        if self._missing_rubric(raw):
+            return GENERIC_JUDGE_REF
+        return self._coerce_rubric(raw)
 
     def _judge_one(
         self,
         value: Any,
-        rubric: Any | None = None,
+        rubric: JudgeReference,
         replay_verification: Any | None = None,
     ) -> dict[str, Any]:
         trajectory = as_trajectory_dict(value)
         if trajectory is None:
             return self._empty_verdict("unparseable_trajectory")
+
+        serialized_rubric = json.dumps(rubric.to_dict(), ensure_ascii=False)
+        should_shard = (
+            len(rubric.criteria) > 1
+            and self.max_combined_rubric_chars is not None
+            and len(serialized_rubric) > self.max_combined_rubric_chars
+        )
+        if should_shard:
+            return self._judge_one_sharded(
+                trajectory,
+                rubric,
+                replay_verification,
+                reason=(
+                    f"rubric_chars={len(serialized_rubric)} exceeds "
+                    f"{self.max_combined_rubric_chars}"
+                ),
+            )
         try:
-            raw = self.llm_serving.generate(self._judge_messages(
+            messages = self._judge_messages(
                 trajectory, rubric, replay_verification
-            ))
+            )
+            generated = self.llm_serving.generate_messages_with_options(
+                [messages],
+                [_judge_response_options(rubric)],
+            )
+            if len(generated) != 1:
+                raise RuntimeError("judge serving must return exactly one response")
+            raw = generated[0]
         except Exception as exc:  # judge errors remain row-local
             self.logger.warning(
                 f"[AgentMMTrajectoryQualityEvaluator] judge call failed: {exc}"
@@ -205,32 +416,134 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
             return self._empty_verdict(f"judge_error: {exc}")
         verdict = self._extract_json(raw)
         if verdict is None:
-            return self._empty_verdict("unparseable_verdict")
-        result: dict[str, Any] = {}
-        for axis in AXES:
-            try:
-                result[axis] = (
-                    int(verdict.get(axis)) if verdict.get(axis) is not None else None
+            if len(rubric.criteria) > 1:
+                return self._judge_one_sharded(
+                    trajectory,
+                    rubric,
+                    replay_verification,
+                    reason="combined verdict was unparseable",
                 )
-            except (TypeError, ValueError):
-                result[axis] = None
+            return self._empty_verdict("unparseable_verdict")
         try:
-            result["overall"] = (
-                float(verdict.get("overall"))
-                if verdict.get("overall") is not None
-                else None
+            model_scores = self._validated_scores(
+                verdict, rubric
             )
-        except (TypeError, ValueError):
-            result["overall"] = None
-        result["rationale"] = str(verdict.get("rationale", ""))
-        return result
+        except (TypeError, ValueError) as exc:
+            if len(rubric.criteria) > 1:
+                return self._judge_one_sharded(
+                    trajectory,
+                    rubric,
+                    replay_verification,
+                    reason=f"combined verdict was invalid: {exc}",
+                )
+            return self._empty_verdict(f"invalid_verdict: {exc}")
+        return self._finalize_verdict(
+            trajectory,
+            rubric,
+            model_scores,
+            str(verdict.get("rationale", "")),
+        )
+
+    @staticmethod
+    def _validated_scores(
+        verdict: Mapping[str, Any],
+        rubric: JudgeReference,
+    ) -> dict[str, float]:
+        scores = verdict.get("scores")
+        if not isinstance(scores, Mapping):
+            raise TypeError("scores must be an object")
+        expected = set(rubric.criterion_ids)
+        if set(scores) != expected:
+            raise ValueError(
+                "scores must contain exactly the configured criterion ids"
+            )
+        model_scores: dict[str, float] = {}
+        for criterion_id in rubric.criterion_ids:
+            rubric.normalize(scores[criterion_id])
+            model_scores[criterion_id] = float(scores[criterion_id])
+        return model_scores
+
+    def _judge_one_sharded(
+        self,
+        trajectory: dict[str, Any],
+        rubric: JudgeReference,
+        replay_verification: Any | None,
+        *,
+        reason: str,
+    ) -> dict[str, Any]:
+        model_scores: dict[str, float] = {}
+        rationales = [f"[judge_sharded] {reason}"]
+        for criterion in rubric.criteria:
+            shard = JudgeReference(
+                score_min=rubric.score_min,
+                score_max=rubric.score_max,
+                criteria=(criterion,),
+            )
+            try:
+                messages = self._judge_messages(
+                    trajectory,
+                    rubric,
+                    replay_verification,
+                    focused_criterion_ids=shard.criterion_ids,
+                )
+                generated = self.llm_serving.generate_messages_with_options(
+                    [messages],
+                    [_judge_response_options(shard)],
+                )
+                if len(generated) != 1:
+                    raise RuntimeError(
+                        "judge serving must return exactly one response"
+                    )
+                verdict = self._extract_json(generated[0])
+                if verdict is None:
+                    raise ValueError("unparseable verdict")
+                model_scores.update(self._validated_scores(
+                    verdict, shard
+                ))
+                rationales.append(
+                    f"[{criterion.id}]\n{str(verdict.get('rationale', ''))}"
+                )
+            except Exception as exc:
+                self.logger.warning(
+                    "[AgentMMTrajectoryQualityEvaluator] judge shard "
+                    f"{criterion.id!r} failed: {exc}"
+                )
+                return self._empty_verdict(
+                    f"judge_shard_error[{criterion.id}]: {exc}"
+                )
+        return self._finalize_verdict(
+            trajectory,
+            rubric,
+            model_scores,
+            "\n\n".join(rationales),
+        )
+
+    def _finalize_verdict(
+        self,
+        trajectory: dict[str, Any],
+        rubric: JudgeReference,
+        model_scores: Mapping[str, float],
+        rationale: str,
+    ) -> dict[str, Any]:
+        raw_scores = dict(model_scores)
+        normalized = {
+            criterion_id: rubric.normalize(raw_scores[criterion_id])
+            for criterion_id in rubric.criterion_ids
+        }
+        return {
+            "scores": raw_scores,
+            "model_scores": model_scores,
+            "normalized_scores": normalized,
+            "overall": sum(normalized.values()) / len(normalized),
+            "rationale": rationale,
+        }
 
     def run(
         self,
         storage: DataFlowStorage,
         input_key: str = "trajectory",
         output_key: str = "traj_overall",
-        rubric_key: str | None = None,
+        rubric_key: str | None = "judge_ref",
         replay_key: str | None = "replay_verification",
     ):
         if self.llm_serving is None:
@@ -243,19 +556,15 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
                 f"input_key {input_key!r} not found in columns: "
                 f"{list(dataframe.columns)}"
             )
-        if rubric_key is not None and rubric_key not in dataframe.columns:
-            raise KeyError(
-                f"rubric_key {rubric_key!r} not found in columns: "
-                f"{list(dataframe.columns)}"
-            )
         if replay_key is not None and replay_key not in dataframe.columns:
             replay_key = None
         values = dataframe[input_key].tolist()
-        rubrics = (
-            dataframe[rubric_key].tolist()
-            if rubric_key is not None
-            else [None] * len(values)
-        )
+        records = dataframe.to_dict(orient="records")
+        rubrics = [
+            self._rubric_for_row(record, values[index], rubric_key)
+            for index, record in enumerate(records)
+        ]
+        dataframe["judge_ref"] = [rubric.to_dict() for rubric in rubrics]
         replay_values = (
             dataframe[replay_key].tolist()
             if replay_key is not None
@@ -280,7 +589,18 @@ class AgentMMTrajectoryQualityEvaluator(OperatorABC):
                     verdicts[index] = self._empty_verdict(f"error: {exc}")
         complete = [item or self._empty_verdict("missing_verdict") for item in verdicts]
         for axis in AXES:
-            dataframe[f"{self.score_prefix}{axis}"] = [item[axis] for item in complete]
+            dataframe[f"{self.score_prefix}{axis}"] = [
+                item["scores"].get(axis) for item in complete
+            ]
+        dataframe[f"{self.score_prefix}judge_scores"] = [
+            item["scores"] for item in complete
+        ]
+        dataframe[f"{self.score_prefix}judge_model_scores"] = [
+            item["model_scores"] for item in complete
+        ]
+        dataframe[f"{self.score_prefix}judge_normalized_scores"] = [
+            item["normalized_scores"] for item in complete
+        ]
         dataframe[output_key] = [item["overall"] for item in complete]
         dataframe[f"{self.score_prefix}rationale"] = [
             item["rationale"] for item in complete
